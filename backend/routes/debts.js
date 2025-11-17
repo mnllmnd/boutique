@@ -2,10 +2,15 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
+// The server will act on behalf of the boutique owner when creating debts.
+// Set `BOUTIQUE_OWNER` in your environment to the owner identifier (e.g. owner username or id).
+const BOUTIQUE_OWNER = process.env.BOUTIQUE_OWNER || 'owner';
+
 // List all debts
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM debts ORDER BY id DESC');
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    const result = await pool.query('SELECT * FROM debts WHERE creditor=$1 ORDER BY id DESC', [owner]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -17,7 +22,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM debts WHERE id = $1', [id]);
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    const result = await pool.query('SELECT * FROM debts WHERE id = $1 AND creditor = $2', [id, owner]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (err) {
@@ -27,13 +33,22 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a debt (associate with a client)
+// The API does not require the client to provide `creditor`/`debtor`.
 router.post('/', async (req, res) => {
   const { client_id, amount, due_date, notes } = req.body;
   try {
+    // Determine creditor: prefer header 'x-owner' (set by client after login), otherwise use env BOUTIQUE_OWNER
+    const creditorHeader = req.headers['x-owner'] || req.headers['X-Owner'];
+    const creditor = creditorHeader || BOUTIQUE_OWNER;
+    const debtor = '';
     const result = await pool.query(
       'INSERT INTO debts (client_id, creditor, debtor, amount, due_date, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [client_id, null, null, amount, due_date, notes]
+      [client_id, creditor, debtor, amount, due_date, notes]
     );
+    // log activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [creditor, 'create_debt', JSON.stringify({ debt_id: result.rows[0].id, client_id, amount })]);
+    } catch (e) { console.error('Activity log error:', e); }
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -62,8 +77,12 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM debts WHERE id=$1 RETURNING *', [id]);
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    const result = await pool.query('DELETE FROM debts WHERE id=$1 AND creditor=$2 RETURNING *', [id, owner]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'delete_debt', JSON.stringify({ debt_id: id })]);
+    } catch (e) { console.error('Activity log error:', e); }
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -76,17 +95,28 @@ router.post('/:id/pay', async (req, res) => {
   const { id } = req.params;
   const { amount, paid_at, notes } = req.body;
   try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    // ensure debt belongs to owner
+    const debtRes = await pool.query('SELECT creditor FROM debts WHERE id=$1', [id]);
+    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
+
     const paidAt = paid_at || new Date();
     const insert = await pool.query('INSERT INTO payments (debt_id, amount, paid_at, notes) VALUES ($1, $2, $3, $4) RETURNING *', [id, amount, paidAt, notes]);
+
+    // log payment activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'payment', JSON.stringify({ payment_id: insert.rows[0].id, debt_id: id, amount })]);
+    } catch (e) { console.error('Activity log error:', e); }
 
     // compute total paid
     const sumRes = await pool.query('SELECT COALESCE(SUM(amount),0) as total_paid FROM payments WHERE debt_id=$1', [id]);
     const totalPaid = parseFloat(sumRes.rows[0].total_paid || 0);
 
     // get original debt amount
-    const debtRes = await pool.query('SELECT amount FROM debts WHERE id=$1', [id]);
-    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
-    const origAmount = parseFloat(debtRes.rows[0].amount || 0);
+    const origRes = await pool.query('SELECT amount FROM debts WHERE id=$1', [id]);
+    if (origRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    const origAmount = parseFloat(origRes.rows[0].amount || 0);
 
     const paidFlag = totalPaid >= origAmount;
     const paidAtUpdate = paidFlag ? new Date() : null;
@@ -103,6 +133,12 @@ router.post('/:id/pay', async (req, res) => {
 router.get('/:id/payments', async (req, res) => {
   const { id } = req.params;
   try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    // ensure debt belongs to owner
+    const debtRes = await pool.query('SELECT creditor FROM debts WHERE id=$1', [id]);
+    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
+
     const result = await pool.query('SELECT * FROM payments WHERE debt_id=$1 ORDER BY paid_at DESC', [id]);
     res.json(result.rows);
   } catch (err) {
@@ -115,7 +151,8 @@ router.get('/:id/payments', async (req, res) => {
 router.get('/client/:clientId', async (req, res) => {
   const { clientId } = req.params;
   try {
-    const debtsRes = await pool.query('SELECT * FROM debts WHERE client_id=$1 ORDER BY id DESC', [clientId]);
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    const debtsRes = await pool.query('SELECT * FROM debts WHERE client_id=$1 AND creditor=$2 ORDER BY id DESC', [clientId, owner]);
     const debts = [];
     for (const d of debtsRes.rows) {
       const sumRes = await pool.query('SELECT COALESCE(SUM(amount),0) as total_paid FROM payments WHERE debt_id=$1', [d.id]);

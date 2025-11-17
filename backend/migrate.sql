@@ -7,6 +7,23 @@ CREATE TABLE IF NOT EXISTS clients (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Add owner_phone to clients to associate clients with a boutique owner
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clients' AND column_name='owner_phone') THEN
+    ALTER TABLE clients ADD COLUMN owner_phone TEXT;
+  END IF;
+END$$;
+
+-- Owners table for simple authentication
+CREATE TABLE IF NOT EXISTS owners (
+  id SERIAL PRIMARY KEY,
+  phone TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  shop_name TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,
   debt_id INTEGER REFERENCES debts(id) ON DELETE CASCADE,
@@ -38,3 +55,29 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_debts_client_id ON debts(client_id);
 ALTER TABLE debts ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT FALSE; 
 ALTER TABLE debts ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP; 
+ 
+-- Users and team membership for shops
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  phone TEXT UNIQUE,
+  name TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS shop_users (
+  owner_phone TEXT NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'clerk',
+  added_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (owner_phone, user_id)
+);
+
+-- Activity log for shop actions
+CREATE TABLE IF NOT EXISTS activity_log (
+  id SERIAL PRIMARY KEY,
+  owner_phone TEXT NOT NULL,
+  user_id INTEGER,
+  action TEXT NOT NULL,
+  details JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
