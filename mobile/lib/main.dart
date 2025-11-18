@@ -644,7 +644,7 @@ class _HomePageState extends State<HomePage> {
                                     children: [
                                       Expanded(
                                         child: _showTotalCard
-                                          ? Text(fmtFCFA(totalToCollect), style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5))
+                                          ? Text(fmtFCFA(totalToCollect), style: TextStyle(color: Theme.of(context).textTheme.displayLarge?.color, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5))
                                           : Text('••••••', style: TextStyle(color: kMuted, fontSize: 24, fontWeight: FontWeight.w800)),
                                       ),
                                       GestureDetector(
@@ -1220,6 +1220,13 @@ class _HomePageState extends State<HomePage> {
             icon: _isSyncing
                 ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kMuted))
                 : Icon(Icons.sync, color: kMuted),
+          ),
+          IconButton(
+            onPressed: () => AppSettings().setLightMode(!AppSettings().lightMode),
+            icon: Icon(
+              AppSettings().lightMode ? Icons.light_mode : Icons.dark_mode,
+              color: kMuted,
+            ),
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {

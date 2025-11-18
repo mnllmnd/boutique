@@ -42,12 +42,12 @@ router.patch('/profile', async (req, res) => {
   const ownerPhone = req.headers['x-owner'] || req.headers['X-Owner'];
   
   if (!ownerPhone) return res.status(401).json({ error: 'Not authenticated' });
-  if (!phone) return res.status(400).json({ error: 'phone required' });
   
   try {
+    const newPhone = phone || ownerPhone; // Use provided phone or keep existing
     const result = await pool.query(
       'UPDATE owners SET phone=$1, first_name=$2, last_name=$3, shop_name=$4, updated_at=NOW() WHERE phone=$5 RETURNING id, phone, shop_name, first_name, last_name',
-      [phone, first_name, last_name, shop_name, ownerPhone]
+      [newPhone, first_name || '', last_name || '', shop_name || '', ownerPhone]
     );
     
     if (result.rowCount === 0) return res.status(404).json({ error: 'Owner not found' });

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'app_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,6 +20,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _lastNameCtl = TextEditingController();
   final _shopNameCtl = TextEditingController();
   late TextEditingController _phoneCtl;
+  bool _isSavingProfile = false;
+
+  String get apiHost {
+    if (kIsWeb) return 'http://localhost:3000/api';
+    try {
+      if (Platform.isAndroid) return 'http://10.0.2.2:3000/api';
+    } catch (_) {}
+    return 'http://localhost:3000/api';
+  }
 
   @override
   void initState() {
@@ -65,22 +78,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    try {
-      // Update profile in backend (optional, for now we just save locally)
-      // You could add an API call here to sync with backend
-      await _settings.setProfileInfo(
-        _firstNameCtl.text,
-        _lastNameCtl.text,
-        _shopNameCtl.text,
-      );
+    setState(() => _isSavingProfile = true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil enregistré')),
-      );
+    try {
+      // Update profile in backend
+      final body = {
+        'phone': _settings.ownerPhone,
+        'first_name': _firstNameCtl.text.trim(),
+        'last_name': _lastNameCtl.text.trim(),
+        'shop_name': _shopNameCtl.text.trim(),
+      };
+      
+      final headers = {
+        'Content-Type': 'application/json',
+        if (_settings.ownerPhone != null) 'x-owner': _settings.ownerPhone!,
+      };
+      
+      final res = await http.patch(
+        Uri.parse('$apiHost/auth/profile'),
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        // Update local storage
+        await _settings.setProfileInfo(
+          _firstNameCtl.text,
+          _lastNameCtl.text,
+          _shopNameCtl.text,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profil enregistré avec succès')),
+          );
+        }
+      } else {
+        final errorMsg = res.body.isNotEmpty ? json.decode(res.body)['message'] ?? 'Erreur serveur' : 'Erreur serveur';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $errorMsg')),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingProfile = false);
     }
   }
 
@@ -146,8 +194,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _saveProfile,
-                        child: const Text("Enregistrer le profil"),
+                        onPressed: _isSavingProfile ? null : _saveProfile,
+                        child: _isSavingProfile
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text("Enregistrer le profil"),
                       ),
                     )
                   ],
