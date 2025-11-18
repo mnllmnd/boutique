@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
+import 'data/audio_service.dart';
 
 class AddDebtPage extends StatefulWidget {
   final String ownerPhone;
@@ -23,6 +24,9 @@ class _AddDebtPageState extends State<AddDebtPage> {
   final TextEditingController _notesCtl = TextEditingController();
   DateTime? _due;
   bool _saving = false;
+  late AudioService _audioService;
+  String? _audioPath;
+  bool _isRecording = false;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -35,13 +39,21 @@ class _AddDebtPageState extends State<AddDebtPage> {
   @override
   void initState() {
     super.initState();
+    _audioService = AudioService();
     _clientId = widget.preselectedClientId ?? (widget.clients.isNotEmpty ? widget.clients.first['id'] : null);
+  }
+
+  @override
+  void dispose() {
+    _audioService.dispose();
+    _amountCtl.dispose();
+    _notesCtl.dispose();
+    super.dispose();
   }
 
   Future<void> _createClientInline() async {
     final numberCtl = TextEditingController();
     final nameCtl = TextEditingController();
-    final avatarCtl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -49,7 +61,6 @@ class _AddDebtPageState extends State<AddDebtPage> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: nameCtl, decoration: InputDecoration(labelText: 'Nom')),
           TextField(controller: numberCtl, decoration: InputDecoration(labelText: 'Numéro (optionnel)')),
-          TextField(controller: avatarCtl, decoration: InputDecoration(labelText: 'URL avatar (optionnel)')),
         ]),
         actions: [TextButton(onPressed: () => Navigator.of(c).pop(false), child: Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: Text('Ajouter'))],
       ),
@@ -57,7 +68,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
 
     if (ok == true && nameCtl.text.trim().isNotEmpty) {
       try {
-        final body = {'client_number': numberCtl.text.trim(), 'name': nameCtl.text.trim(), 'avatar_url': avatarCtl.text.trim()};
+        final body = {'client_number': numberCtl.text.trim(), 'name': nameCtl.text.trim()};
         final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
         setState(() => _saving = true);
         final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
@@ -139,6 +150,44 @@ class _AddDebtPageState extends State<AddDebtPage> {
     if (d != null) setState(() => _due = d);
   }
 
+  Future<void> _startRecording() async {
+    final ok = await _audioService.startRecording();
+    if (ok) {
+      setState(() => _isRecording = true);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement en cours...')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible de démarrer l\'enregistrement')));
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    final path = await _audioService.stopRecording();
+    if (path != null) {
+      setState(() {
+        _isRecording = false;
+        _audioPath = path;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement sauvegardé')));
+    } else {
+      setState(() => _isRecording = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur lors de l\'enregistrement')));
+    }
+  }
+
+  Future<void> _playAudio() async {
+    if (_audioPath != null) {
+      await _audioService.playAudio(_audioPath!);
+    }
+  }
+
+  Future<void> _deleteAudio() async {
+    if (_audioPath != null) {
+      await _audioService.deleteAudio(_audioPath!);
+      setState(() => _audioPath = null);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement supprimé')));
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_clientId == null) {
@@ -151,7 +200,8 @@ class _AddDebtPageState extends State<AddDebtPage> {
         'client_id': _clientId,
         'amount': double.tryParse(_amountCtl.text.replaceAll(',', '')) ?? 0.0,
         'due_date': _due == null ? null : DateFormat('yyyy-MM-dd').format(_due!),
-        'notes': _notesCtl.text
+        'notes': _notesCtl.text,
+        if (_audioPath != null) 'audio_path': _audioPath,
       };
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
       final res = await http.post(Uri.parse('$apiHost/debts'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
@@ -249,9 +299,67 @@ class _AddDebtPageState extends State<AddDebtPage> {
                       // Due date & quick info
                       Row(
                         children: [
-                          Expanded(child: Text(_due == null ? 'Échéance : Aucune' : 'Échéance : ${DateFormat('dd/MM/yyyy').format(_due!)}', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color))),
+                          Expanded(child: Text(_due == null ? 'Date Échéance : Aucune' : 'Date Échéance : ${DateFormat('dd/MM/yyyy').format(_due!)}', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color))),
                           TextButton(onPressed: _pickDue, child: Text('Choisir', style: TextStyle(color: accent)))
                         ],
+                      ),
+                      SizedBox(height: 12),
+
+                      // Audio Recording
+                      Text('Enregistrement audio (optionnel)', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
+                      SizedBox(height: 8),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            if (_audioPath == null)
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(_isRecording ? '🔴 Enregistrement en cours...' : '🎤 Pas d\'enregistrement', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _saving ? null : (_isRecording ? _stopRecording : _startRecording),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _isRecording ? Colors.red : accent,
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    child: Text(_isRecording ? 'Arrêter' : 'Démarrer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black)),
+                                  ),
+                                ],
+                              )
+                            else
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text('✅ Enregistrement sauvegardé', style: TextStyle(color: Colors.green)),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: _saving ? null : _playAudio,
+                                    icon: Icon(Icons.play_arrow, size: 16),
+                                    label: Text('Écouter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: accent,
+                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  IconButton(
+                                    icon: Icon(Icons.delete, size: 18, color: Colors.red),
+                                    onPressed: _saving ? null : _deleteAudio,
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                       SizedBox(height: 12),
 
@@ -262,7 +370,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         controller: _notesCtl,
                         maxLines: 3,
                         decoration: InputDecoration(
-                          hintText: 'Ex : A payé partiellement',
+                          hintText: 'Ex : A pris 1 kg de sucre',
                           filled: true,
                           fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

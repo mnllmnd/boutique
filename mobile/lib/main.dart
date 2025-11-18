@@ -16,6 +16,7 @@ import 'app_settings.dart';
 import 'settings_screen.dart';
 import 'login_page.dart';
 import 'add_debt_page.dart';
+import 'add_client_page.dart';
 import 'debt_details_page.dart';
 import 'theme.dart';
 
@@ -448,47 +449,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<int?> createClient() async {
-    final numberCtl = TextEditingController();
-    final nameCtl = TextEditingController();
-    final avatarCtl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Ajouter un client'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: numberCtl, decoration: InputDecoration(labelText: 'Numéro (optionnel)')),
-            TextField(controller: nameCtl, decoration: InputDecoration(labelText: 'Nom')),
-            TextField(controller: avatarCtl, decoration: InputDecoration(labelText: 'URL Avatar (optionnel)')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(false), child: Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: Text('Ajouter')),
-        ],
-      ),
-    );
-    if (ok == true && nameCtl.text.trim().isNotEmpty) {
-      try {
-        final body = {'client_number': numberCtl.text.trim(), 'name': nameCtl.text.trim(), 'avatar_url': avatarCtl.text.trim()};
-        final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-        final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
-        if (res.statusCode == 201) {
-          // try to parse created object (expecting backend returns created client)
-          try {
-            final created = json.decode(res.body);
-            await fetchClients();
-            if (created is Map && created['id'] != null) return created['id'] as int?;
-          } catch (_) {
-            await fetchClients();
-            return clients.isNotEmpty ? clients.last['id'] as int? : null;
-          }
-        }
-      } on TimeoutException {
-        print('Timeout creating client');
-      } catch (e) {
-        print('Error creating client: $e');
+    final result = await Navigator.of(context).push<dynamic>(MaterialPageRoute(builder: (_) => AddClientPage(ownerPhone: widget.ownerPhone)));
+    
+    if (result != null) {
+      await fetchClients();
+      // If result is a Map (created client object), return its ID
+      if (result is Map && result['id'] != null) {
+        return result['id'] as int?;
+      }
+      // If result is true, fetch and return last client's ID
+      if (result == true && clients.isNotEmpty) {
+        return clients.last['id'] as int?;
       }
     }
     return null;
@@ -630,7 +601,7 @@ class _HomePageState extends State<HomePage> {
         itemCount: groups.length + 1,
         itemBuilder: (ctx, gi) {
           if (gi == 0) {
-            // Header summary card - improved style
+            // Header summary card - beautiful new design
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               child: Material(
@@ -638,89 +609,113 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2))],
-                    border: Border.all(color: Colors.white.withOpacity(0.03)),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))],
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                  padding: EdgeInsets.all(0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header with total
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Total à percevoir', style: TextStyle(color: kMuted, fontSize: 13)),
-                              SizedBox(height: 6),
-                              Row(
+                      // Top section - Total and Impayées side by side
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _showTotalCard
-                                    ? Text(fmtFCFA(totalToCollect), style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 20, fontWeight: FontWeight.w400))
-                                    : Text('••••••', style: TextStyle(color: kMuted, fontSize: 20, fontWeight: FontWeight.w400)),
-                                  SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: () => setState(() => _showTotalCard = !_showTotalCard),
-                                    child: Icon(_showTotalCard ? Icons.visibility : Icons.visibility_off, color: kMuted, size: 20),
+                                  Text('Total à percevoir', style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _showTotalCard
+                                          ? Text(fmtFCFA(totalToCollect), style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5))
+                                          : Text('••••••', style: TextStyle(color: kMuted, fontSize: 24, fontWeight: FontWeight.w800)),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => setState(() => _showTotalCard = !_showTotalCard),
+                                        child: Icon(_showTotalCard ? Icons.visibility : Icons.visibility_off, color: kMuted, size: 20),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ]),
-                          ),
-                          SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-                                child: Column(children: [Text('Impayées', style: TextStyle(color: Colors.redAccent.withOpacity(0.9), fontSize: 12)), SizedBox(height: 4), Text('$totalUnpaid', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 18))]),
+                            ),
+                            SizedBox(width: 16),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                            ],
-                          )
-                        ],
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text('Impayées', style: TextStyle(color: Colors.redAccent.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                                  SizedBox(height: 6),
+                                  Text('$totalUnpaid', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 22)),
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
                       ),
-                      SizedBox(height: 16),
-                      // Action buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _tabIndex = 1),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.surface.withOpacity(0.5)),
-                                    child: Icon(Icons.person_add, color: Theme.of(context).textTheme.bodyLarge?.color, size: 26),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text('Client', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14, fontWeight: FontWeight.w500)),
-                                ],
+                      // Divider
+                      Container(height: 1, color: Colors.white.withOpacity(0.08)),
+                      // Bottom section - Action buttons
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final newId = await createClient();
+                                  if (newId != null) {
+                                    await fetchClients();
+                                    await fetchDebts();
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: kAccent.withOpacity(0.15)),
+                                      child: Icon(Icons.person_add, color: kAccent, size: 24),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text('Client', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddDebtPage(ownerPhone: widget.ownerPhone, clients: clients, preselectedClientId: null))),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.surface.withOpacity(0.5)),
-                                    child: Icon(Icons.note_add, color: Theme.of(context).textTheme.bodyLarge?.color, size: 26),
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text('Dette', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14, fontWeight: FontWeight.w500)),
-                                ],
+                            SizedBox(width: 24),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddDebtPage(ownerPhone: widget.ownerPhone, clients: clients, preselectedClientId: null))),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(shape: BoxShape.circle, color: kAccent.withOpacity(0.15)),
+                                      child: Icon(Icons.add_circle, color: kAccent, size: 24),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text('Dette', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       )
                     ],
                   ),
@@ -1004,6 +999,42 @@ class _HomePageState extends State<HomePage> {
                         if (res == true) {
                           await fetchDebts();
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Dette ajoutée')));
+                        }
+                      },
+                    ),
+                    // delete client
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: Text('Supprimer le client'),
+                            content: Text('Êtes-vous sûr de vouloir supprimer ${c['name']} ? Cette action ne peut pas être annulée.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Annuler')),
+                              ElevatedButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                child: Text('Supprimer', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
+                            final res = await http.delete(Uri.parse('$apiHost/clients/${c['id']}'), headers: headers).timeout(Duration(seconds: 8));
+                            if (res.statusCode == 200) {
+                              await fetchClients();
+                              await fetchDebts();
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Client supprimé')));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: ${res.statusCode}')));
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                          }
                         }
                       },
                     ),

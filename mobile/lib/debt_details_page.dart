@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
 import 'add_payment_page.dart';
+import 'data/audio_service.dart';
 
 class DebtDetailsPage extends StatefulWidget {
   final String ownerPhone;
@@ -21,6 +22,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   List payments = [];
   bool _loading = false;
   bool _changed = false; // whether something changed (payment added or debt deleted)
+  late AudioService _audioService;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -33,7 +35,14 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   @override
   void initState() {
     super.initState();
+    _audioService = AudioService();
     _loadPayments();
+  }
+
+  @override
+  void dispose() {
+    _audioService.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPayments() async {
@@ -131,6 +140,21 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
                       Text('Notes', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
                       SizedBox(height: 8),
                       Text(widget.debt['notes'], style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+                      SizedBox(height: 12),
+                    ],
+                    if (widget.debt['audio_path'] != null && widget.debt['audio_path'] != '') ...[
+                      Text('Enregistrement audio', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                      SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _audioService.playAudio(widget.debt['audio_path']),
+                        icon: Icon(Icons.play_arrow, size: 18),
+                        label: Text('Écouter l\'enregistrement', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
                       SizedBox(height: 12),
                     ],
                     Text('Paiements récents', style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color, fontWeight: FontWeight.w700)),

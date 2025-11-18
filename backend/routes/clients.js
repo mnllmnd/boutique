@@ -47,4 +47,21 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Delete client
+router.delete('/:id', async (req, res) => {
+  try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    const result = await pool.query('DELETE FROM clients WHERE id=$1 AND owner_phone = $2 RETURNING *', [req.params.id, owner]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+    // log activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'delete_client', JSON.stringify({ client_id: result.rows[0].id, name: result.rows[0].name })]);
+    } catch (e) { console.error('Activity log error:', e); }
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 module.exports = router;

@@ -41,15 +41,15 @@ router.get('/:id', async (req, res) => {
 // Create a debt (associate with a client)
 // The API does not require the client to provide `creditor`/`debtor`.
 router.post('/', async (req, res) => {
-  const { client_id, amount, due_date, notes } = req.body;
+  const { client_id, amount, due_date, notes, audio_path } = req.body;
   try {
     // Determine creditor: prefer header 'x-owner' (set by client after login), otherwise use env BOUTIQUE_OWNER
     const creditorHeader = req.headers['x-owner'] || req.headers['X-Owner'];
     const creditor = creditorHeader || BOUTIQUE_OWNER;
     const debtor = '';
     const result = await pool.query(
-      'INSERT INTO debts (client_id, creditor, debtor, amount, due_date, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [client_id, creditor, debtor, amount, due_date, notes]
+      'INSERT INTO debts (client_id, creditor, debtor, amount, due_date, notes, audio_path) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [client_id, creditor, debtor, amount, due_date, notes, audio_path]
     );
     // log activity
     try {
