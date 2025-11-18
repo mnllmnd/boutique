@@ -800,6 +800,23 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ]),
                         SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            if (client != null) {
+                              final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddDebtPage(ownerPhone: widget.ownerPhone, clients: clients, preselectedClientId: client['id'])));
+                              if (res == true) {
+                                await fetchDebts();
+                                setState(() { _expandedClients.add(client['id']); });
+                              }
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(6),
+                            decoration: BoxDecoration(color: kAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                            child: Icon(Icons.add_circle, size: 20, color: kAccent),
+                          ),
+                        ),
+                        SizedBox(width: 8),
                         AnimatedRotation(
                           turns: isOpen ? 0.5 : 0.0,
                           duration: Duration(milliseconds: 200),
@@ -812,28 +829,6 @@ class _HomePageState extends State<HomePage> {
                 if (isOpen)
                   Column(
                     children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                if (client != null) {
-                                  final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddDebtPage(ownerPhone: widget.ownerPhone, clients: clients, preselectedClientId: client['id'])));
-                                  if (res == true) {
-                                    await fetchDebts();
-                                    setState(() { _expandedClients.add(client['id']); });
-                                  }
-                                }
-                              },
-                              icon: Icon(Icons.add, size: 16, color: Colors.black),
-                              label: Text('', style: TextStyle(color: Colors.black)),
-                              style: ElevatedButton.styleFrom(backgroundColor: kAccent, padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                            ),
-                          ],
-                        ),
-                      ),
                       Divider(color: Colors.white10, height: 1),
                       ...clientDebts.map<Widget>((d) {
                         final amountVal = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
