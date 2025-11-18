@@ -88,11 +88,20 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future setOwner({required String phone, String? shopName, int? id}) async {
+  Future setOwner({required String phone, String? shopName, int? id, String? firstName, String? lastName}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('owner_phone', phone);
     if (shopName != null) await prefs.setString('owner_shop_name', shopName);
     if (id != null) await prefs.setInt('owner_id', id);
+    if (firstName != null) await prefs.setString('owner_first_name', firstName);
+    if (lastName != null) await prefs.setString('owner_last_name', lastName);
+    
+    // Initialize settings with profile data
+    final settings = AppSettings();
+    if (firstName != null && lastName != null) {
+      await settings.setProfileInfo(firstName, lastName, shopName ?? '');
+    }
+    
     setState(() { ownerPhone = phone; ownerShopName = shopName; ownerId = id; });
   }
 
@@ -110,7 +119,7 @@ class _MyAppState extends State<MyApp> {
       title: 'Boutique - Gestion de dettes',
       theme: getAppTheme(lightMode: _appSettings.lightMode),
       home: ownerPhone == null
-          ? LoginPage(onLogin: (phone, shop, id) => setOwner(phone: phone, shopName: shop, id: id))
+          ? LoginPage(onLogin: (phone, shop, id, firstName, lastName) => setOwner(phone: phone, shopName: shop, id: id, firstName: firstName, lastName: lastName))
           : HomePage(ownerPhone: ownerPhone!, ownerShopName: ownerShopName, onLogout: clearOwner),
     );
   }
@@ -492,7 +501,10 @@ class _HomePageState extends State<HomePage> {
             children: [
               DropdownButtonFormField<int>(
                 initialValue: selectedClientId,
-                items: clients.map<DropdownMenuItem<int>>((cl) => DropdownMenuItem(value: cl['id'], child: Text(cl['name']))).toList(),
+                items: clients.map<DropdownMenuItem<int>>((cl) {
+                  final clientNumber = (cl['client_number'] ?? '').toString().isNotEmpty ? ' (${cl['client_number']})' : '';
+                  return DropdownMenuItem(value: cl['id'], child: Text('${cl['name']}$clientNumber'));
+                }).toList(),
                 onChanged: (v) => selectedClientId = v,
                 decoration: InputDecoration(labelText: 'Client'),
               ),
@@ -810,6 +822,51 @@ class _HomePageState extends State<HomePage> {
                             decoration: BoxDecoration(color: kAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
                             child: Icon(Icons.add_circle, size: 20, color: kAccent),
                           ),
+                        ),
+                        SizedBox(width: 8),
+                        PopupMenuButton<String>(
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 18, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Supprimer', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onSelected: (value) async {
+                            if (value == 'delete' && client != null) {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text('Supprimer le client'),
+                                  content: Text('Êtes-vous sûr de vouloir supprimer ${client['name']} ? Les dettes associées seront conservées.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Non')),
+                                    ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Oui, supprimer')),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                try {
+                                  final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
+                                  final res = await http.delete(Uri.parse('$apiHost/clients/${client['id']}'), headers: headers).timeout(Duration(seconds: 8));
+                                  if (res.statusCode == 200) {
+                                    await fetchClients();
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Client supprimé')));
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur lors de la suppression')));
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                }
+                              }
+                            }
+                          },
+                          child: Icon(Icons.more_vert, size: 20, color: Theme.of(context).textTheme.bodyMedium?.color),
                         ),
                         SizedBox(width: 8),
                         AnimatedRotation(

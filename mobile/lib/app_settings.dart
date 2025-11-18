@@ -15,10 +15,19 @@ class AppSettings extends ChangeNotifier {
   String? _ownerPhone;
   bool _lightMode = false;
   bool _showAmounts = true;
+  
+  // User profile information
+  String? _firstName;
+  String? _lastName;
+  String? _shopName;
 
   String get locale => _locale;
   String get currency => _currency;
   Map<String, double> get rates => _rates;
+  String? get firstName => _firstName;
+  String? get lastName => _lastName;
+  String? get shopName => _shopName;
+  String? get ownerPhone => _ownerPhone;
 
   Future<void> initForOwner(String ownerPhone) async {
     _ownerPhone = ownerPhone;
@@ -28,6 +37,10 @@ class AppSettings extends ChangeNotifier {
     final r = prefs.getString('rates_${ownerPhone}');
     final lm = prefs.getBool('light_mode_${ownerPhone}');
     final sa = prefs.getBool('show_amounts_${ownerPhone}');
+    final fn = prefs.getString('first_name_${ownerPhone}');
+    final ln = prefs.getString('last_name_${ownerPhone}');
+    final sn = prefs.getString('shop_name_${ownerPhone}');
+    
     if (l != null) _locale = l;
     if (c != null) _currency = c;
     if (r != null) {
@@ -38,6 +51,9 @@ class AppSettings extends ChangeNotifier {
     }
     if (lm != null) _lightMode = lm;
     if (sa != null) _showAmounts = sa;
+    if (fn != null) _firstName = fn;
+    if (ln != null) _lastName = ln;
+    if (sn != null) _shopName = sn;
     notifyListeners();
   }
 
@@ -76,6 +92,40 @@ class AppSettings extends ChangeNotifier {
     _showAmounts = show;
     final prefs = await SharedPreferences.getInstance();
     if (_ownerPhone != null) await prefs.setBool('show_amounts_${_ownerPhone}', show);
+    notifyListeners();
+  }
+
+  Future<void> setFirstName(String firstName) async {
+    _firstName = firstName;
+    final prefs = await SharedPreferences.getInstance();
+    if (_ownerPhone != null) await prefs.setString('first_name_${_ownerPhone}', firstName);
+    notifyListeners();
+  }
+
+  Future<void> setLastName(String lastName) async {
+    _lastName = lastName;
+    final prefs = await SharedPreferences.getInstance();
+    if (_ownerPhone != null) await prefs.setString('last_name_${_ownerPhone}', lastName);
+    notifyListeners();
+  }
+
+  Future<void> setShopName(String shopName) async {
+    _shopName = shopName;
+    final prefs = await SharedPreferences.getInstance();
+    if (_ownerPhone != null) await prefs.setString('shop_name_${_ownerPhone}', shopName);
+    notifyListeners();
+  }
+
+  Future<void> setProfileInfo(String firstName, String lastName, String shopName) async {
+    _firstName = firstName;
+    _lastName = lastName;
+    _shopName = shopName;
+    final prefs = await SharedPreferences.getInstance();
+    if (_ownerPhone != null) {
+      await prefs.setString('first_name_${_ownerPhone}', firstName);
+      await prefs.setString('last_name_${_ownerPhone}', lastName);
+      await prefs.setString('shop_name_${_ownerPhone}', shopName);
+    }
     notifyListeners();
   }
 

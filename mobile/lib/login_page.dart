@@ -13,7 +13,7 @@ const Color kTextPrimary = Color(0xFFFFFFFF);
 const Color kTextSecondary = Color.fromARGB(255, 163, 154, 166);
 
 class LoginPage extends StatefulWidget {
-  final void Function(String phone, String? shop, int? id) onLogin;
+  final void Function(String phone, String? shop, int? id, String? firstName, String? lastName) onLogin;
   LoginPage({required this.onLogin});
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
         final id = data['id'] is int
             ? data['id'] as int
             : (data['id'] is String ? int.tryParse(data['id']) : null);
-        widget.onLogin(data['phone'], data['shop_name'], id);
+        widget.onLogin(data['phone'], data['shop_name'], id, data['first_name'], data['last_name']);
       } else {
         final body = res.body;
         final lower = body.toLowerCase();
@@ -269,7 +269,9 @@ class _LoginPageState extends State<LoginPage> {
                           child: TextButton(
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => RegisterPage(onRegister: widget.onLogin),
+                                builder: (_) => RegisterPage(onRegister: (phone, shop, id, firstName, lastName) {
+                                  widget.onLogin(phone, shop, id, firstName, lastName);
+                                }),
                               ),
                             ),
                             child: RichText(
@@ -315,7 +317,7 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class RegisterPage extends StatefulWidget {
-  final void Function(String phone, String? shop, int? id) onRegister;
+  final void Function(String phone, String? shop, int? id, String? firstName, String? lastName) onRegister;
   RegisterPage({required this.onRegister});
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -324,6 +326,8 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final phoneCtl = TextEditingController();
   final passCtl = TextEditingController();
+  final firstNameCtl = TextEditingController();
+  final lastNameCtl = TextEditingController();
   final shopCtl = TextEditingController();
   bool loading = false;
 
@@ -341,6 +345,8 @@ class _RegisterPageState extends State<RegisterPage> {
       final body = {
         'phone': phoneCtl.text.trim(),
         'password': passCtl.text,
+        'first_name': firstNameCtl.text.trim(),
+        'last_name': lastNameCtl.text.trim(),
         'shop_name': shopCtl.text.trim()
       };
       final res = await http.post(
@@ -352,7 +358,7 @@ class _RegisterPageState extends State<RegisterPage> {
         final id = data['id'] is int
             ? data['id'] as int
             : (data['id'] is String ? int.tryParse(data['id']) : null);
-        widget.onRegister(data['phone'], data['shop_name'], id);
+        widget.onRegister(data['phone'], data['shop_name'], id, data['first_name'], data['last_name']);
         Navigator.of(context).pop();
       } else {
         await showDialog(
@@ -467,6 +473,42 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ),
                         SizedBox(height: 32),
+
+                        TextField(
+                          controller: firstNameCtl,
+                          style: TextStyle(color: kTextPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.black.withOpacity(0.2),
+                            labelText: 'Prénom',
+                            labelStyle: TextStyle(color: kTextSecondary),
+                            prefixIcon: Icon(Icons.person_rounded, color: kTextSecondary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+
+                        TextField(
+                          controller: lastNameCtl,
+                          style: TextStyle(color: kTextPrimary),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.black.withOpacity(0.2),
+                            labelText: 'Nom',
+                            labelStyle: TextStyle(color: kTextSecondary),
+                            prefixIcon: Icon(Icons.person_rounded, color: kTextSecondary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                          ),
+                        ),
+                        SizedBox(height: 16),
 
                         TextField(
                           controller: phoneCtl,

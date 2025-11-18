@@ -12,12 +12,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AppSettings _settings = AppSettings();
   final _eurCtl = TextEditingController();
   final _usdCtl = TextEditingController();
+  final _firstNameCtl = TextEditingController();
+  final _lastNameCtl = TextEditingController();
+  final _shopNameCtl = TextEditingController();
+  late TextEditingController _phoneCtl;
 
   @override
   void initState() {
     super.initState();
     _eurCtl.text = (_settings.rates['EUR'] ?? 655.957).toString();
     _usdCtl.text = (_settings.rates['USD'] ?? 606.371).toString();
+    _firstNameCtl.text = _settings.firstName ?? '';
+    _lastNameCtl.text = _settings.lastName ?? '';
+    _shopNameCtl.text = _settings.shopName ?? '';
+    _phoneCtl = TextEditingController(text: _settings.ownerPhone ?? '');
     _settings.addListener(_apply);
   }
 
@@ -28,6 +36,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settings.removeListener(_apply);
     _eurCtl.dispose();
     _usdCtl.dispose();
+    _firstNameCtl.dispose();
+    _lastNameCtl.dispose();
+    _shopNameCtl.dispose();
+    _phoneCtl.dispose();
     super.dispose();
   }
 
@@ -45,6 +57,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
         .showSnackBar(const SnackBar(content: Text('Taux enregistrés')));
   }
 
+  Future<void> _saveProfile() async {
+    if (_firstNameCtl.text.isEmpty || _lastNameCtl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le prénom et le nom sont obligatoires')),
+      );
+      return;
+    }
+
+    try {
+      // Update profile in backend (optional, for now we just save locally)
+      // You could add an API call here to sync with backend
+      await _settings.setProfileInfo(
+        _firstNameCtl.text,
+        _lastNameCtl.text,
+        _shopNameCtl.text,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil enregistré')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+
   // -------------------------------------------------------------------
 
   @override
@@ -59,6 +98,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+
+              // ---------------------- PROFIL ----------------------------
+              _sectionCard(
+                title: "Votre profil",
+                description: "Modifiez vos informations personnelles et votre boutique",
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _firstNameCtl,
+                      decoration: InputDecoration(
+                        labelText: 'Prénom',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _lastNameCtl,
+                      decoration: InputDecoration(
+                        labelText: 'Nom',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _shopNameCtl,
+                      decoration: InputDecoration(
+                        labelText: 'Nom de la boutique',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _phoneCtl,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'Numéro de téléphone',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        suffixIcon: const Icon(Icons.lock_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _saveProfile,
+                        child: const Text("Enregistrer le profil"),
+                      ),
+                    )
+                  ],
+                ),
+              ),
 
               // ---------------------- THEME ----------------------------
               _sectionCard(

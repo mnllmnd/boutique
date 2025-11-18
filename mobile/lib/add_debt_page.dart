@@ -40,7 +40,17 @@ class _AddDebtPageState extends State<AddDebtPage> {
   void initState() {
     super.initState();
     _audioService = AudioService();
-    _clientId = widget.preselectedClientId ?? (widget.clients.isNotEmpty ? widget.clients.first['id'] : null);
+    
+    // Validate that preselected client exists in the list
+    int? validClientId;
+    if (widget.preselectedClientId != null && widget.clients.isNotEmpty) {
+      final exists = widget.clients.any((c) => c['id'] == widget.preselectedClientId);
+      if (exists) {
+        validClientId = widget.preselectedClientId;
+      }
+    }
+    
+    _clientId = validClientId ?? (widget.clients.isNotEmpty ? widget.clients.first['id'] : null);
   }
 
   @override
@@ -240,9 +250,11 @@ class _AddDebtPageState extends State<AddDebtPage> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       // Client selector
                       Text('Client', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
                       SizedBox(height: 8),
@@ -252,7 +264,13 @@ class _AddDebtPageState extends State<AddDebtPage> {
                             child: DropdownButtonFormField<int>(
                               value: _clientId,
                               isExpanded: true,
-                              items: widget.clients.map<DropdownMenuItem<int>>((cl) => DropdownMenuItem(value: cl['id'], child: Text(cl['name'] ?? 'Client'))).toList(),
+                              items: widget.clients.map<DropdownMenuItem<int>>((cl) {
+                                final clientNumber = (cl['client_number'] ?? '').toString().isNotEmpty ? ' (${cl['client_number']})' : '';
+                                return DropdownMenuItem(
+                                  value: cl['id'],
+                                  child: Text('${cl['name'] ?? 'Client'}$clientNumber'),
+                                );
+                              }).toList(),
                               onChanged: (v) => setState(() => _clientId = v),
                               decoration: InputDecoration(
                                 filled: true,
@@ -410,6 +428,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                         ),
                       ),
                     ],
+                  ),
                   ),
                 ),
               ),
