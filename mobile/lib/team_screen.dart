@@ -46,7 +46,7 @@ class _TeamScreenState extends State<TeamScreen> {
     final phoneCtl = TextEditingController();
     final nameCtl = TextEditingController();
     String role = 'clerk';
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text('Inviter un membre'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: phoneCtl, decoration: InputDecoration(labelText: 'Numéro')), TextField(controller: nameCtl, decoration: InputDecoration(labelText: 'Nom')), DropdownButtonFormField<String>(value: role, items: ['clerk','admin'].map((r)=>DropdownMenuItem(value: r, child: Text(r))).toList(), onChanged: (v) => role = v ?? role)]), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Inviter'))]));
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text('Inviter un membre'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: phoneCtl, decoration: InputDecoration(labelText: 'Numéro')), TextField(controller: nameCtl, decoration: InputDecoration(labelText: 'Nom')), DropdownButtonFormField<String>(initialValue: role, items: ['clerk','admin'].map((r)=>DropdownMenuItem(value: r, child: Text(r))).toList(), onChanged: (v) => role = v ?? role)]), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Inviter'))]));
     if (ok == true && phoneCtl.text.trim().isNotEmpty) {
       try {
         final headers = {'Content-Type': 'application/json', 'x-owner': widget.ownerPhone};

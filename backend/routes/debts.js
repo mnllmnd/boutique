@@ -10,8 +10,14 @@ const BOUTIQUE_OWNER = process.env.BOUTIQUE_OWNER || 'owner';
 router.get('/', async (req, res) => {
   try {
     const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
-    const result = await pool.query('SELECT * FROM debts WHERE creditor=$1 ORDER BY id DESC', [owner]);
-    res.json(result.rows);
+    const debtsRes = await pool.query('SELECT * FROM debts WHERE creditor=$1 ORDER BY id DESC', [owner]);
+    const debts = [];
+    for (const d of debtsRes.rows) {
+      const sumRes = await pool.query('SELECT COALESCE(SUM(amount),0) as total_paid FROM payments WHERE debt_id=$1', [d.id]);
+      const totalPaid = parseFloat(sumRes.rows[0].total_paid || 0);
+      debts.push({ ...d, total_paid: totalPaid, remaining: parseFloat(d.amount) - totalPaid });
+    }
+    res.json(debts);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'DB error' });

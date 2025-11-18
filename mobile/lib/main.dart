@@ -95,9 +95,8 @@ class _MyAppState extends State<MyApp> {
         appBarTheme: AppBarTheme(backgroundColor: kSurface, foregroundColor: Colors.white, elevation: 0),
         scaffoldBackgroundColor: kBackground,
         cardColor: kCard,
-        dialogBackgroundColor: kCard,
         elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: kAccent, foregroundColor: Colors.black)),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: kAccent, foregroundColor: Colors.black),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: kAccent, foregroundColor: Colors.black), dialogTheme: DialogThemeData(backgroundColor: kCard),
       ),
       home: ownerPhone == null
           ? LoginPage(onLogin: (phone, shop, id) => setOwner(phone: phone, shopName: shop, id: id))
@@ -712,143 +711,101 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDebtsTab() {
+    // Group debts by client_id
+    final Map<dynamic, List> grouped = {};
+    for (final d in debts) {
+      final key = d != null && d['client_id'] != null ? d['client_id'] : 'unknown';
+      if (!grouped.containsKey(key)) grouped[key] = [];
+      grouped[key]!.add(d);
+    }
+
+    final groups = grouped.entries.toList();
+
     return RefreshIndicator(
       onRefresh: () async => await fetchDebts(),
       child: ListView.builder(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: debts.length,
-        itemBuilder: (ctx, i) {
-          final d = debts[i];
-          final clientName = _clientNameForDebt(d) ?? 'Client inconnu';
-          final cid = d['client_id'];
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        itemCount: groups.length,
+        itemBuilder: (ctx, gi) {
+          final entry = groups[gi];
+          final cid = entry.key;
+          final clientDebts = entry.value;
           final client = clients.firstWhere((x) => x['id'] == cid, orElse: () => null);
+          final clientName = client != null ? client['name'] : (cid == 'unknown' ? 'Clients inconnus' : 'Client ${cid}');
           final avatarUrl = client != null ? client['avatar_url'] : null;
-          // compute amounts/status for quick display
-          final amountVal = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-          double? remainingVal;
-          try {
-            if (d != null && d['remaining'] != null) remainingVal = double.tryParse(d['remaining'].toString());
-          } catch (_) {}
-          final bool inProgress = remainingVal != null && remainingVal < amountVal && remainingVal > 0;
-          final bool isPaid = d['paid'] == true || (remainingVal != null && remainingVal <= 0);
-          final bool statusIsGreen = isPaid || inProgress;
-          
+
+          // compute aggregated remaining for client
+          double totalRemaining = 0.0;
+          for (final d in clientDebts) {
+            final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
+            double rem = amt;
+            try {
+              if (d != null && d['remaining'] != null) rem = double.tryParse(d['remaining'].toString()) ?? rem;
+              else if (d != null && d['total_paid'] != null) rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
+            } catch (_) {}
+            totalRemaining += rem;
+          }
+
           return Container(
-            margin: EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: kCard,
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
-            ),
-            child: InkWell(
-              onTap: () => showDebtDetails(d),
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Avatar
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[900],
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                      child: avatarUrl != null && avatarUrl != ''
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(1),
-                              child: CachedNetworkImage(
-                                imageUrl: avatarUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kMuted))),
-                                errorWidget: (context, url, error) => Icon(Icons.person_outline, color: kMuted, size: 24),
-                              ),
-                            )
-                          : Icon(Icons.person_outline, color: kMuted, size: 24),
-                    ),
-                    SizedBox(width: 16),
-                    // Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            clientName.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            fmtFCFA(d['amount']),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          if (d['notes'] != null && d['notes'] != '') ...[
-                            SizedBox(height: 6),
-                            Text(
-                              d['notes'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: kMuted.withOpacity(0.7),
-                                letterSpacing: 0.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // Bottom row: remaining amount + status icon
-                    Column(
+            margin: EdgeInsets.only(bottom: 12, left: 8, right: 8),
+            decoration: BoxDecoration(color: kCard, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white.withOpacity(0.04))),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              collapsedIconColor: kAccent,
+              iconColor: kAccent,
+              leading: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(4)),
+                child: avatarUrl != null && avatarUrl != ''
+                    ? ClipRRect(borderRadius: BorderRadius.circular(4), child: CachedNetworkImage(imageUrl: avatarUrl, fit: BoxFit.cover))
+                    : Icon(Icons.person_outline, color: kMuted),
+              ),
+              title: Text(clientName.toString().toUpperCase(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+              subtitle: Text('${clientDebts.length} dette(s) • Reste: ${fmtFCFA(totalRemaining)}', style: TextStyle(color: kMuted)),
+              children: clientDebts.map<Widget>((d) {
+                final amountVal = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
+                double remainingVal = amountVal;
+                try {
+                  if (d != null && d['remaining'] != null) remainingVal = double.tryParse(d['remaining'].toString()) ?? remainingVal;
+                  else if (d != null && d['total_paid'] != null) remainingVal = amountVal - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
+                } catch (_) {}
+                final bool inProgress = remainingVal < amountVal && remainingVal > 0;
+                final bool isPaid = d['paid'] == true || remainingVal <= 0;
+                final bool statusIsGreen = isPaid || inProgress;
+
+                return InkWell(
+                  onTap: () => showDebtDetails(d),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
                       children: [
-                        SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Remaining amount (nice style)
-                            Row(
-                              children: [
-                                Text('Reste: ', style: TextStyle(color: kMuted, fontSize: 12)),
-                                SizedBox(width: 6),
-                                Text(
-                                  fmtFCFA(remainingVal ?? amountVal),
-                                  style: TextStyle(
-                                    color: (remainingVal != null && remainingVal <= 0) ? Colors.green : Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Status icon (green if in progress or paid)
-                            Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: statusIsGreen ? Colors.green.withOpacity(0.12) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Icon(
-                                statusIsGreen ? Icons.check_circle : Icons.circle,
-                                color: statusIsGreen ? Colors.green : kAccent.withOpacity(0.6),
-                                size: 18,
-                              ),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(fmtFCFA(d['amount']), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                              if (d['notes'] != null && d['notes'] != '') SizedBox(height: 6),
+                              if (d['notes'] != null && d['notes'] != '') Text(d['notes'], style: TextStyle(color: kMuted, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                        Column(children: [
+                          Text('Reste', style: TextStyle(color: kMuted, fontSize: 12)),
+                          SizedBox(height: 6),
+                          Text(fmtFCFA(remainingVal), style: TextStyle(color: (remainingVal <= 0) ? Colors.green : Colors.white, fontWeight: FontWeight.w700)),
+                        ]),
+                        SizedBox(width: 12),
+                        Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: statusIsGreen ? Colors.green.withOpacity(0.12) : Colors.transparent, borderRadius: BorderRadius.circular(6)),
+                          child: Icon(statusIsGreen ? Icons.check_circle : Icons.circle, color: statusIsGreen ? Colors.green : kAccent.withOpacity(0.6), size: 18),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }).toList(),
             ),
           );
         },
