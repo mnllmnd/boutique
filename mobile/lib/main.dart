@@ -835,7 +835,9 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.04) : const Color.fromARGB(189, 43, 31, 48).withOpacity(0.02),
                     border: Border.all(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,18 +906,18 @@ class _HomePageState extends State<HomePage> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: totalUnpaid > 0 ? Colors.red.withOpacity(0.15) : Colors.green.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(14),
+                                    color: totalUnpaid > 0 ? const Color.fromARGB(255, 205, 59, 48).withOpacity(0.15) : Colors.green.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(7),
                                     border: Border.all(
-                                      color: totalUnpaid > 0 ? Colors.red : Colors.green,
-                                      width: 1.5,
+                                      color: totalUnpaid > 0 ? const Color.fromARGB(73, 189, 53, 43) : const Color.fromARGB(63, 76, 175, 79),
+                                      width: 1,
                                     ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        totalUnpaid > 0 ? '🔴' : '✓',
+                                        totalUnpaid > 0 ? '' : '✓',
                                         style: const TextStyle(fontSize: 14),
                                       ),
                                       const SizedBox(width: 6),
@@ -924,7 +926,7 @@ class _HomePageState extends State<HomePage> {
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
-                                          color: totalUnpaid > 0 ? Colors.red : Colors.green,
+                                          color: totalUnpaid > 0 ? const Color.fromARGB(255, 197, 54, 44) : const Color.fromARGB(255, 37, 125, 40),
                                         ),
                                       ),
                                     ],
@@ -939,62 +941,78 @@ class _HomePageState extends State<HomePage> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextButton.icon(
-                              onPressed: () async {
-                                final newId = await createClient();
-                                if (newId != null) {
-                                  await fetchClients();
-                                  await fetchDebts();
-                                }
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
-                                foregroundColor: textColor,
-                                shape: const RoundedRectangleBorder(),
-                              ),
-                              icon: const Icon(Icons.person_add, size: 18),
-                              label: Text(
-                                'CLIENT',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () async {
+                                  final newId = await createClient();
+                                  if (newId != null) {
+                                    await fetchClients();
+                                    await fetchDebts();
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.person_add, size: 18, color: textColor),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'CLIENT',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 1,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                           Container(width: 0.5, color: borderColor),
                           Expanded(
-                            child: TextButton.icon(
-                              onPressed: () async {
-                                final res = await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => AddDebtPage(
-                                      ownerPhone: widget.ownerPhone,
-                                      clients: clients,
-                                      preselectedClientId: null,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () async {
+                                  final res = await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => AddDebtPage(
+                                        ownerPhone: widget.ownerPhone,
+                                        clients: clients,
+                                        preselectedClientId: null,
+                                      ),
                                     ),
-                                  ),
-                                );
-                                if (res == true) {
-                                  await fetchDebts();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Dette ajoutée')),
                                   );
-                                }
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
-                                foregroundColor: textColor,
-                                shape: const RoundedRectangleBorder(),
-                              ),
-                              icon: const Icon(Icons.add_circle, size: 18),
-                              label: Text(
-                                'DETTE',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1,
+                                  if (res == true) {
+                                    await fetchDebts();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Dette ajoutée')),
+                                    );
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_circle, size: 18, color: textColor),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'DETTE',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 1,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1004,17 +1022,34 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-                Text(
-                  'RECENT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                    color: textColorSecondary,
+                const SizedBox(height: 28),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'RÉCENT',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.5,
+                          color: textColorSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 40,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: textColor,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
               ],
             );
           }
@@ -1058,7 +1093,9 @@ class _HomePageState extends State<HomePage> {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
               border: Border.all(color: borderColor, width: 0.5),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               children: [
@@ -1071,6 +1108,10 @@ class _HomePageState extends State<HomePage> {
                     }
                   }),
                   onLongPress: () => _showClientActions(client, cid),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -1130,18 +1171,18 @@ class _HomePageState extends State<HomePage> {
                               AppSettings().formatCurrency(totalRemaining),
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: totalRemaining > 0 ? Colors.orange : Colors.green,
+                                fontWeight: FontWeight.w400,
+                                color: totalRemaining > 0 ? const Color.fromARGB(224, 219, 132, 2) : Colors.green,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: unpaidCount > 0 ? Colors.red.withOpacity(0.15) : Colors.green.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(12),
+                                color: unpaidCount > 0 ? const Color.fromARGB(211, 155, 37, 29).withOpacity(0.15) : Colors.green.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(7),
                                 border: Border.all(
-                                  color: unpaidCount > 0 ? Colors.red : Colors.green,
+                                  color: unpaidCount > 0 ? const Color.fromARGB(57, 244, 67, 54) : Colors.green,
                                   width: 1,
                                 ),
                               ),
@@ -1149,7 +1190,7 @@ class _HomePageState extends State<HomePage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    unpaidCount > 0 ? '🔴' : '✓',
+                                    unpaidCount > 0 ? '' : '✓',
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                   const SizedBox(width: 4),
@@ -1212,7 +1253,7 @@ class _HomePageState extends State<HomePage> {
                               value: 'payment',
                               child: Row(
                                 children: [
-                                  Icon(Icons.monetization_on_outlined, size: 18, color: textColor),
+                                  Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
                                   const SizedBox(width: 8),
                                   Text('Ajouter paiement', style: TextStyle(color: textColor)),
                                 ],
@@ -1222,7 +1263,7 @@ class _HomePageState extends State<HomePage> {
                               value: 'debt',
                               child: Row(
                                 children: [
-                                  Icon(Icons.add_circle, size: 18, color: textColor),
+                                  Icon(Icons.add_circle, size: 18, color: Colors.orange),
                                   const SizedBox(width: 8),
                                   Text('Ajouter dette', style: TextStyle(color: textColor)),
                                 ],
@@ -1272,14 +1313,17 @@ class _HomePageState extends State<HomePage> {
                         final statusBgColor = isPaid ? Colors.green.withOpacity(0.1) : (isOverdue ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1));
 
                         return Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
                           decoration: BoxDecoration(
                             color: statusBgColor,
                             border: Border(
                               left: BorderSide(color: statusColor, width: 3),
                             ),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: InkWell(
                             onTap: () => showDebtDetails(d),
+                            borderRadius: BorderRadius.circular(6),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               child: Row(
@@ -1385,7 +1429,9 @@ class _HomePageState extends State<HomePage> {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
               border: Border.all(color: borderColor, width: 0.5),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: ListTile(
               leading: Container(
@@ -1498,7 +1544,7 @@ class _HomePageState extends State<HomePage> {
                         value: 'payment',
                         child: Row(
                           children: [
-                            Icon(Icons.monetization_on_outlined, size: 18, color: textColor),
+                            Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
                             const SizedBox(width: 8),
                             Text('Ajouter paiement', style: TextStyle(color: textColor)),
                           ],
@@ -1508,7 +1554,7 @@ class _HomePageState extends State<HomePage> {
                         value: 'debt',
                         child: Row(
                           children: [
-                            Icon(Icons.add_circle, size: 18, color: textColor),
+                            Icon(Icons.add_circle, size: 18, color: Colors.orange),
                             const SizedBox(width: 8),
                             Text('Ajouter dette', style: TextStyle(color: textColor)),
                           ],
