@@ -12,7 +12,7 @@ class DebtDetailsPage extends StatefulWidget {
   final String ownerPhone;
   final Map debt;
 
-  DebtDetailsPage({required this.ownerPhone, required this.debt});
+  const DebtDetailsPage({super.key, required this.ownerPhone, required this.debt});
 
   @override
   _DebtDetailsPageState createState() => _DebtDetailsPageState();
@@ -49,7 +49,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
     setState(() => _loading = true);
     try {
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-      final res = await http.get(Uri.parse('$apiHost/debts/${widget.debt['id']}/payments'), headers: headers).timeout(Duration(seconds: 8));
+      final res = await http.get(Uri.parse('$apiHost/debts/${widget.debt['id']}/payments'), headers: headers).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) payments = json.decode(res.body) as List;
     } catch (e) {
       // ignore
@@ -68,19 +68,19 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   }
 
   Future<void> _deleteDebt() async {
-    final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text('Confirmer'), content: Text('Supprimer cette dette ?'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Supprimer'))]));
+    final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Confirmer'), content: const Text('Supprimer cette dette ?'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Supprimer'))]));
     if (confirm != true) return;
     try {
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-      final res = await http.delete(Uri.parse('$apiHost/debts/${widget.debt['id']}'), headers: headers).timeout(Duration(seconds: 8));
+      final res = await http.delete(Uri.parse('$apiHost/debts/${widget.debt['id']}'), headers: headers).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         _changed = true;
         Navigator.of(context).pop(true);
       } else {
-        await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Échec suppression: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+        await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec suppression: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
       }
     } catch (e) {
-      await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur réseau'), content: Text('$e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+      await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur réseau'), content: Text('$e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
     }
   }
 
@@ -98,71 +98,71 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Détails dette'),
+        title: const Text('Détails dette'),
         actions: [
-          IconButton(onPressed: _addPayment, icon: Icon(Icons.add)),
-          IconButton(onPressed: _deleteDebt, icon: Icon(Icons.delete_forever, color: Colors.redAccent)),
+          IconButton(onPressed: _addPayment, icon: const Icon(Icons.add)),
+          IconButton(onPressed: _deleteDebt, icon: const Icon(Icons.delete_forever, color: Colors.redAccent)),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 520),
             child: Card(
               color: Theme.of(context).cardColor,
               elevation: 6,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(widget.debt['client_name'] ?? '', style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color, fontSize: 16, fontWeight: FontWeight.w800)),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(fmtAmount(amount), style: TextStyle(color: Theme.of(context).textTheme.displayMedium?.color, fontSize: 22, fontWeight: FontWeight.w900)),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text('Échéance: ${fmtDate(widget.debt['due_date'])}', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     LinearProgressIndicator(
                       value: amount == 0 ? 0.0 : (totalPaid / amount).clamp(0.0, 1.0),
                       backgroundColor: Theme.of(context).dividerColor.withOpacity(0.3),
                       color: Theme.of(context).colorScheme.primary,
                       minHeight: isSmall ? 8 : 10,
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Payé', style: TextStyle(color: Theme.of(context).colorScheme.secondary)), SizedBox(height:4), Text(fmtAmount(totalPaid), style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700))])),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Reste', style: TextStyle(color: Theme.of(context).colorScheme.secondary)), SizedBox(height:4), Text(fmtAmount(remaining), style: TextStyle(color: remaining <= 0 ? Colors.green : Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.w700))])),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Payé', style: TextStyle(color: Theme.of(context).colorScheme.secondary)), const SizedBox(height:4), Text(fmtAmount(totalPaid), style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700))])),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Reste', style: TextStyle(color: Theme.of(context).colorScheme.secondary)), const SizedBox(height:4), Text(fmtAmount(remaining), style: TextStyle(color: remaining <= 0 ? Colors.green : Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.w700))])),
                     ]),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     if (widget.debt['notes'] != null && widget.debt['notes'] != '') ...[
                       Text('Notes', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(widget.debt['notes'], style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                     ],
                     if (widget.debt['audio_path'] != null && widget.debt['audio_path'] != '') ...[
                       Text('Enregistrement audio', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       ElevatedButton.icon(
                         onPressed: () => _audioService.playAudio(widget.debt['audio_path']),
-                        icon: Icon(Icons.play_arrow, size: 18),
-                        label: Text('Écouter l\'enregistrement', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        icon: const Icon(Icons.play_arrow, size: 18),
+                        label: const Text('Écouter l\'enregistrement', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
-                          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                     ],
                     Text('Paiements récents', style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 8),
-                    Container(
+                    const SizedBox(height: 8),
+                    SizedBox(
                       height: 220,
                       child: _loading
-                        ? Center(child: CircularProgressIndicator())
+                        ? const Center(child: CircularProgressIndicator())
                         : payments.isEmpty
                           ? Center(child: Text('Aucun paiement', style: TextStyle(color: Theme.of(context).colorScheme.secondary)))
                           : ListView.separated(
@@ -180,12 +180,12 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
                               },
                             ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(onPressed: () => Navigator.of(context).pop(_changed), child: Text('Fermer')),
-                        SizedBox(width: 8),
+                        TextButton(onPressed: () => Navigator.of(context).pop(_changed), child: const Text('Fermer')),
+                        const SizedBox(width: 8),
                         ElevatedButton.icon(onPressed: _addPayment, icon: Icon(Icons.add, color: Theme.of(context).elevatedButtonTheme.style?.foregroundColor?.resolve({}) ?? Colors.white), label: Text('Ajouter paiement', style: TextStyle(color: Theme.of(context).elevatedButtonTheme.style?.foregroundColor?.resolve({}) ?? Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary)),
                       ],
                     )
@@ -202,7 +202,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   String fmtAmount(dynamic v) {
     try {
       final n = double.tryParse(v?.toString() ?? '0') ?? 0.0;
-      return NumberFormat('#,###', 'fr_FR').format(n) + ' FCFA';
+      return '${NumberFormat('#,###', 'fr_FR').format(n)} FCFA';
     } catch (_) { return v?.toString() ?? '-'; }
   }
 

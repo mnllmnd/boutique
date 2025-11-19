@@ -9,7 +9,7 @@ class AddPaymentPage extends StatefulWidget {
   final String ownerPhone;
   final Map debt;
 
-  AddPaymentPage({required this.ownerPhone, required this.debt});
+  const AddPaymentPage({super.key, required this.ownerPhone, required this.debt});
 
   @override
   _AddPaymentPageState createState() => _AddPaymentPageState();
@@ -17,7 +17,7 @@ class AddPaymentPage extends StatefulWidget {
 
 class _AddPaymentPageState extends State<AddPaymentPage> {
   final TextEditingController _amountCtl = TextEditingController();
-  DateTime _paidAt = DateTime.now();
+  final DateTime _paidAt = DateTime.now();
   bool _loading = false;
 
   double get _remaining {
@@ -47,15 +47,15 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
     try {
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
       final body = {'amount': val, 'paid_at': _paidAt.toIso8601String()};
-      final res = await http.post(Uri.parse('${apiHost}/debts/${widget.debt['id']}/pay'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 10));
+      final res = await http.post(Uri.parse('$apiHost/debts/${widget.debt['id']}/pay'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200 || res.statusCode == 201) {
         if (mounted) Navigator.of(context).pop(true);
       } else {
         final msg = res.body;
-        await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Échec ajout paiement: ${res.statusCode}\n$msg'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+        await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec ajout paiement: ${res.statusCode}\n$msg'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
       }
     } catch (e) {
-      await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur réseau'), content: Text('$e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+      await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur réseau'), content: Text('$e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -77,22 +77,22 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Ajouter paiement'),
+        title: const Text('Ajouter paiement'),
         elevation: 0,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 400),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Card(
                 color: Theme.of(context).cardColor,
                 elevation: 6,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -104,7 +104,7 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                           fontSize: 18
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Reste: ${NumberFormat('#,###', 'fr_FR').format(remaining)} FCFA', 
                         style: TextStyle(
@@ -112,7 +112,7 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                           fontSize: 16
                         ),
                       ),
-                      SizedBox(height: 24),
+                      const SizedBox(height: 24),
                       TextField(
                         controller: _amountCtl,
                         keyboardType: TextInputType.number,
@@ -134,12 +134,19 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                             borderRadius: BorderRadius.circular(12), 
                             borderSide: BorderSide.none
                           ),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                         ),
                       ),
-                      SizedBox(height: 24),
+                      const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: _loading ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent, 
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)
+                          ),
+                        ),
                         child: _loading 
                             ? SizedBox(
                                 height: 20, 
@@ -157,13 +164,6 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                                   fontWeight: FontWeight.w600
                                 )
                               ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent, 
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)
-                          ),
-                        ),
                       ),
                     ],
                   ),

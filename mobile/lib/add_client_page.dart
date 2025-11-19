@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class AddClientPage extends StatefulWidget {
   final String ownerPhone;
 
-  AddClientPage({required this.ownerPhone});
+  const AddClientPage({super.key, required this.ownerPhone});
 
   @override
   _AddClientPageState createState() => _AddClientPageState();
@@ -37,7 +37,7 @@ class _AddClientPageState extends State<AddClientPage> {
         'client_number': _numberCtl.text.trim(),
       };
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-      final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
+      final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
 
       if (res.statusCode == 201) {
         try {
@@ -55,18 +55,18 @@ class _AddClientPageState extends State<AddClientPage> {
           await showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: Text('Client existant'),
-              content: Text('Un client avec ce numéro existe déjà.'),
-              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))],
+              title: const Text('Client existant'),
+              content: const Text('Un client avec ce numéro existe déjà.'),
+              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
             ),
           );
         } else {
           await showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: Text('Erreur'),
+              title: const Text('Erreur'),
               content: Text('Échec création client: ${res.statusCode}\n${res.body}'),
-              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))],
+              actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
             ),
           );
         }
@@ -75,9 +75,9 @@ class _AddClientPageState extends State<AddClientPage> {
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('Erreur'),
+          title: const Text('Erreur'),
           content: Text('Erreur création client: $e'),
-          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))],
+          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
         ),
       );
     } finally {
@@ -94,20 +94,20 @@ class _AddClientPageState extends State<AddClientPage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        title: Text('Ajouter un client', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text('Ajouter un client', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 640),
+              constraints: const BoxConstraints(maxWidth: 640),
               child: Card(
                 color: cardColor,
                 elevation: 6,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -115,7 +115,7 @@ class _AddClientPageState extends State<AddClientPage> {
                       children: [
                         // Name field
                         Text('Nom du client', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         TextFormField(
                           controller: _nameCtl,
                           style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.displayLarge?.color),
@@ -125,16 +125,16 @@ class _AddClientPageState extends State<AddClientPage> {
                             filled: true,
                             fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                           validator: (v) => (v == null || v.trim().isEmpty) ? 'Entrez un nom' : null,
                           autofocus: true,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
                         // Phone number field
                         Text('Numéro de téléphone (optionnel)', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         TextFormField(
                           controller: _numberCtl,
                           keyboardType: TextInputType.phone,
@@ -145,13 +145,13 @@ class _AddClientPageState extends State<AddClientPage> {
                             filled: true,
                             fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
                         // Actions
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
@@ -159,18 +159,18 @@ class _AddClientPageState extends State<AddClientPage> {
                                 onPressed: _saving ? null : _submit,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: accent,
-                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 0,
                                 ),
                                 child: _saving
                                     ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Theme.of(context).colorScheme.onPrimary, strokeWidth: 2))
-                                    : Text('Créer le client', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
+                                    : const Text('Créer le client', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: TextButton(

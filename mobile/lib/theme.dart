@@ -88,7 +88,7 @@ ThemeData getAppTheme({bool lightMode = false}) {
     useMaterial3: true,
     brightness: Brightness.dark,
     scaffoldBackgroundColor: kBackground,
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: kSurface,
       foregroundColor: kTextPrimary,
       elevation: 0,
@@ -105,24 +105,24 @@ ThemeData getAppTheme({bool lightMode = false}) {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: kBorder, width: 1),
+        side: const BorderSide(color: kBorder, width: 1),
       ),
       margin: EdgeInsets.zero,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: kAccent,
-      foregroundColor: Color(0xFF0F1113),
+      foregroundColor: const Color(0xFF0F1113),
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: kAccent,
-        foregroundColor: Color(0xFF0F1113),
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        foregroundColor: const Color(0xFF0F1113),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         elevation: 0,
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
           fontSize: kFontSizeM,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
@@ -132,10 +132,10 @@ ThemeData getAppTheme({bool lightMode = false}) {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: kAccent,
-        side: BorderSide(color: kBorder, width: 1),
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        side: const BorderSide(color: kBorder, width: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
           fontSize: kFontSizeM,
           fontWeight: FontWeight.w600,
         ),
@@ -144,30 +144,30 @@ ThemeData getAppTheme({bool lightMode = false}) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: kSurface,
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kBorder, width: 1),
+        borderSide: const BorderSide(color: kBorder, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kBorder, width: 1),
+        borderSide: const BorderSide(color: kBorder, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kAccent, width: 2),
+        borderSide: const BorderSide(color: kAccent, width: 2),
       ),
-      labelStyle: TextStyle(
+      labelStyle: const TextStyle(
         color: kMuted,
         fontSize: kFontSizeM,
         fontWeight: FontWeight.w400,
       ),
-      hintStyle: TextStyle(
+      hintStyle: const TextStyle(
         color: kMuted,
         fontSize: kFontSizeM,
       ),
     ),
-    textTheme: TextTheme(
+    textTheme: const TextTheme(
       displayLarge: TextStyle(
         color: kTextPrimary,
         fontSize: kFontSize2XL,
@@ -217,7 +217,7 @@ ThemeData getAppTheme({bool lightMode = false}) {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: kBorder, width: 1),
+        side: const BorderSide(color: kBorder, width: 1),
       ),
     ),
   );
@@ -229,7 +229,7 @@ ThemeData getAppThemeLight() {
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: kBackgroundLight,
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: kSurfaceLight,
       foregroundColor: kTextPrimaryLight,
       elevation: 0,
@@ -246,7 +246,7 @@ ThemeData getAppThemeLight() {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: kBorderLight, width: 1),
+        side: const BorderSide(color: kBorderLight, width: 1),
       ),
       margin: EdgeInsets.zero,
     ),
@@ -260,10 +260,10 @@ ThemeData getAppThemeLight() {
       style: ElevatedButton.styleFrom(
         backgroundColor: kAccent,
         foregroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         elevation: 0,
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
           fontSize: kFontSizeM,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
@@ -273,10 +273,10 @@ ThemeData getAppThemeLight() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: kAccent,
-        side: BorderSide(color: kBorderLight, width: 1),
-        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        side: const BorderSide(color: kBorderLight, width: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
           fontSize: kFontSizeM,
           fontWeight: FontWeight.w600,
         ),
@@ -285,30 +285,30 @@ ThemeData getAppThemeLight() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: kSurfaceLight,
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kBorderLight, width: 1),
+        borderSide: const BorderSide(color: kBorderLight, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kBorderLight, width: 1),
+        borderSide: const BorderSide(color: kBorderLight, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: kAccent, width: 2),
+        borderSide: const BorderSide(color: kAccent, width: 2),
       ),
-      labelStyle: TextStyle(
+      labelStyle: const TextStyle(
         color: kMutedLight,
         fontSize: kFontSizeM,
         fontWeight: FontWeight.w400,
       ),
-      hintStyle: TextStyle(
+      hintStyle: const TextStyle(
         color: kMutedLight,
         fontSize: kFontSizeM,
       ),
     ),
-    textTheme: TextTheme(
+    textTheme: const TextTheme(
       displayLarge: TextStyle(
         color: kTextPrimaryLight,
         fontSize: kFontSize2XL,
@@ -358,7 +358,7 @@ ThemeData getAppThemeLight() {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: kBorderLight, width: 1),
+        side: const BorderSide(color: kBorderLight, width: 1),
       ),
     ),
   );

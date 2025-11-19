@@ -326,7 +326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _simpleRateInput(String label, TextEditingController ctrl) {
     return TextField(
       controller: ctrl,
-      keyboardType: TextInputType.numberWithOptions(decimal: true),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
         hintText: "Ex: 655.957",
@@ -339,7 +339,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _pillButton(String label, VoidCallback onTap) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        shape: StadiumBorder(),
+        shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       ),
       onPressed: onTap,

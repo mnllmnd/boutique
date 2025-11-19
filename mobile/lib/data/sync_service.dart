@@ -28,7 +28,7 @@ class SyncService {
 
     try {
       // Fetch clients
-      final clientsRes = await http.get(Uri.parse('$apiHost/clients'), headers: headers).timeout(Duration(seconds: 8));
+      final clientsRes = await http.get(Uri.parse('$apiHost/clients'), headers: headers).timeout(const Duration(seconds: 8));
       if (clientsRes.statusCode == 200) {
         final List<dynamic> clients = json.decode(clientsRes.body) as List<dynamic>;
         final List<Map<String, dynamic>> mapped = clients.map((c) => Map<String, dynamic>.from(c as Map)).toList();
@@ -36,7 +36,7 @@ class SyncService {
       }
 
       // Fetch debts
-      final debtsRes = await http.get(Uri.parse('$apiHost/debts'), headers: headers).timeout(Duration(seconds: 8));
+      final debtsRes = await http.get(Uri.parse('$apiHost/debts'), headers: headers).timeout(const Duration(seconds: 8));
       if (debtsRes.statusCode == 200) {
         final List<dynamic> debts = json.decode(debtsRes.body) as List<dynamic>;
         final List<Map<String, dynamic>> mapped = debts.map((d) => Map<String, dynamic>.from(d as Map)).toList();

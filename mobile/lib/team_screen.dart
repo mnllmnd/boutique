@@ -31,8 +31,8 @@ class _TeamScreenState extends State<TeamScreen> {
     setState(() => _loading = true);
     try {
       final headers = {'Content-Type': 'application/json', 'x-owner': widget.ownerPhone};
-      final m = await http.get(Uri.parse('$apiHost/team/members'), headers: headers).timeout(Duration(seconds: 8));
-      final a = await http.get(Uri.parse('$apiHost/team/activity'), headers: headers).timeout(Duration(seconds: 8));
+      final m = await http.get(Uri.parse('$apiHost/team/members'), headers: headers).timeout(const Duration(seconds: 8));
+      final a = await http.get(Uri.parse('$apiHost/team/activity'), headers: headers).timeout(const Duration(seconds: 8));
       if (m.statusCode == 200) members = json.decode(m.body) as List;
       if (a.statusCode == 200) activity = json.decode(a.body) as List;
     } catch (e) {
@@ -49,7 +49,7 @@ class _TeamScreenState extends State<TeamScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Inviter un membre'),
+        title: const Text('Inviter un membre'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -62,7 +62,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextField(
               controller: nameCtl,
               decoration: InputDecoration(
@@ -70,10 +70,10 @@ class _TeamScreenState extends State<TeamScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: role,
-              items: [
+              items: const [
                 DropdownMenuItem(value: 'clerk', child: Text('Vendeur')),
                 DropdownMenuItem(value: 'admin', child: Text('Administrateur')),
               ],
@@ -86,8 +86,8 @@ class _TeamScreenState extends State<TeamScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Inviter')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Inviter')),
         ],
       ),
     );
@@ -101,14 +101,14 @@ class _TeamScreenState extends State<TeamScreen> {
         );
         if (res.statusCode == 201) {
           await _load();
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invitation envoyée')));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitation envoyée')));
         } else {
           showDialog(
             context: context,
             builder: (c) => AlertDialog(
-              title: Text('Erreur'),
-              content: Text('Impossible d\'envoyer l\'invitation'),
-              actions: [TextButton(onPressed: () => Navigator.of(c).pop(), child: Text('OK'))],
+              title: const Text('Erreur'),
+              content: const Text('Impossible d\'envoyer l\'invitation'),
+              actions: [TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('OK'))],
             ),
           );
         }
@@ -184,15 +184,15 @@ class _TeamScreenState extends State<TeamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Équipe'),
+        title: const Text('Équipe'),
         centerTitle: true,
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 children: [
                   // Membres section
                   Row(
@@ -200,18 +200,18 @@ class _TeamScreenState extends State<TeamScreen> {
                     children: [
                       Text(
                         'Membres (${members.length})',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                       ElevatedButton.icon(
                         onPressed: _invite,
-                        icon: Icon(Icons.person_add, size: 16),
-                        label: Text('Inviter'),
+                        icon: const Icon(Icons.person_add, size: 16),
+                        label: const Text('Inviter'),
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   if (members.isEmpty)
-                    Center(
+                    const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
                         child: Text(
@@ -222,33 +222,33 @@ class _TeamScreenState extends State<TeamScreen> {
                     )
                   else
                     ...members.map((m) => Card(
-                          margin: EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 8),
                           child: Padding(
-                            padding: EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(12),
                             child: Row(
                               children: [
-                                CircleAvatar(
+                                const CircleAvatar(
                                   child: Icon(Icons.person, size: 20),
                                 ),
-                                SizedBox(width: 12),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         m['name'] ?? 'Pas de nom',
-                                        style: TextStyle(fontWeight: FontWeight.w600),
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
                                       ),
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       Text(
                                         m['phone'] ?? 'Pas de téléphone',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: (m['role'] == 'admin' ? Colors.blue : Colors.green).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
@@ -266,15 +266,15 @@ class _TeamScreenState extends State<TeamScreen> {
                             ),
                           ),
                         )),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   // Activité section
-                  Text(
+                  const Text(
                     'Activité récente',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   if (activity.isEmpty)
-                    Center(
+                    const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
                         child: Text(
@@ -285,17 +285,17 @@ class _TeamScreenState extends State<TeamScreen> {
                     )
                   else
                     ...activity.map((a) => Card(
-                          margin: EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 8),
                           child: Padding(
-                            padding: EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   _formatActivityMessage(a),
-                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                                 ),
-                                SizedBox(height: 6),
+                                const SizedBox(height: 6),
                                 Text(
                                   _formatDate(a['created_at']),
                                   style: TextStyle(fontSize: 12, color: Colors.grey[500]),

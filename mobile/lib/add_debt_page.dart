@@ -11,7 +11,7 @@ class AddDebtPage extends StatefulWidget {
   final List clients;
   final int? preselectedClientId;
 
-  AddDebtPage({required this.ownerPhone, required this.clients, this.preselectedClientId});
+  const AddDebtPage({super.key, required this.ownerPhone, required this.clients, this.preselectedClientId});
 
   @override
   _AddDebtPageState createState() => _AddDebtPageState();
@@ -67,12 +67,12 @@ class _AddDebtPageState extends State<AddDebtPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Ajouter un client'),
+        title: const Text('Ajouter un client'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: nameCtl, decoration: InputDecoration(labelText: 'Nom')),
-          TextField(controller: numberCtl, decoration: InputDecoration(labelText: 'Numéro (optionnel)')),
+          TextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Nom')),
+          TextField(controller: numberCtl, decoration: const InputDecoration(labelText: 'Numéro (optionnel)')),
         ]),
-        actions: [TextButton(onPressed: () => Navigator.of(c).pop(false), child: Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: Text('Ajouter'))],
+        actions: [TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Annuler')), ElevatedButton(onPressed: () => Navigator.of(c).pop(true), child: const Text('Ajouter'))],
       ),
     );
 
@@ -81,7 +81,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
         final body = {'client_number': numberCtl.text.trim(), 'name': nameCtl.text.trim()};
         final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
         setState(() => _saving = true);
-        final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
+        final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
         if (res.statusCode == 201) {
             try {
             final created = json.decode(res.body);
@@ -90,15 +90,18 @@ class _AddDebtPageState extends State<AddDebtPage> {
               if (created is Map && created['id'] != null) {
                 final createdId = created['id'].toString();
                 final exists = widget.clients.indexWhere((c) => c['id']?.toString() == createdId);
-                if (exists == -1) widget.clients.insert(0, created);
-                else widget.clients[exists] = created; // update existing
+                if (exists == -1) {
+                  widget.clients.insert(0, created);
+                } else {
+                  widget.clients[exists] = created; // update existing
+                }
                 _clientId = created['id'];
               }
             });
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Client ajouté')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Client ajouté')));
           } catch (_) {
             // fallback: reload clients from parent won't happen here; just inform user
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Client ajouté')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Client ajouté')));
           }
         } else {
           final bodyText = res.body;
@@ -108,7 +111,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
           if (numberCtl.text.trim().isNotEmpty) {
             try {
               final headersGet = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-              final getRes = await http.get(Uri.parse('$apiHost/clients'), headers: headersGet).timeout(Duration(seconds: 8));
+              final getRes = await http.get(Uri.parse('$apiHost/clients'), headers: headersGet).timeout(const Duration(seconds: 8));
               if (getRes.statusCode == 200) {
                 final list = json.decode(getRes.body) as List;
                 final found = list.firstWhere((c) => (c['client_number'] ?? '').toString() == numberCtl.text.trim(), orElse: () => null);
@@ -117,19 +120,22 @@ class _AddDebtPageState extends State<AddDebtPage> {
                   final choose = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                            title: Text('Utilisateur existant'),
+                            title: const Text('Utilisateur existant'),
                             content: Text('Un utilisateur existe déjà avec ce numéro (${found['name']}). Voulez-vous le sélectionner ?'),
                             actions: [
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text('Non')),
-                              ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text('Oui'))
+                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Non')),
+                              ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Oui'))
                             ],
                           ));
                   if (choose == true) {
                     setState(() {
                       final foundId = found['id']?.toString();
                       final existsIndex = widget.clients.indexWhere((c) => c['id']?.toString() == foundId);
-                      if (existsIndex == -1) widget.clients.insert(0, found);
-                      else widget.clients[existsIndex] = found;
+                      if (existsIndex == -1) {
+                        widget.clients.insert(0, found);
+                      } else {
+                        widget.clients[existsIndex] = found;
+                      }
                       _clientId = found['id'];
                     });
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Client sélectionné : ${found['name']}')));
@@ -137,7 +143,7 @@ class _AddDebtPageState extends State<AddDebtPage> {
                   } else {
                     // user chose not to select existing; if server returned duplicate, show friendly message
                     if (isDuplicate) {
-                      await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Info'), content: Text('Cet utilisateur existe.'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+                      await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Info'), content: const Text('Cet utilisateur existe.'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
                       return;
                     }
                   }
@@ -145,10 +151,10 @@ class _AddDebtPageState extends State<AddDebtPage> {
               }
             } catch (_) {}
           }
-          await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Échec création client: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+          await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec création client: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
         }
       } catch (e) {
-        await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Erreur création client: $e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+        await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Erreur création client: $e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
       } finally {
         if (mounted) setState(() => _saving = false);
       }
@@ -164,9 +170,9 @@ class _AddDebtPageState extends State<AddDebtPage> {
     final ok = await _audioService.startRecording();
     if (ok) {
       setState(() => _isRecording = true);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement en cours...')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enregistrement en cours...')));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Impossible de démarrer l\'enregistrement')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible de démarrer l\'enregistrement')));
     }
   }
 
@@ -177,10 +183,10 @@ class _AddDebtPageState extends State<AddDebtPage> {
         _isRecording = false;
         _audioPath = path;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement sauvegardé')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enregistrement sauvegardé')));
     } else {
       setState(() => _isRecording = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur lors de l\'enregistrement')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de l\'enregistrement')));
     }
   }
 
@@ -194,14 +200,14 @@ class _AddDebtPageState extends State<AddDebtPage> {
     if (_audioPath != null) {
       await _audioService.deleteAudio(_audioPath!);
       setState(() => _audioPath = null);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement supprimé')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enregistrement supprimé')));
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_clientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Veuillez choisir un client')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez choisir un client')));
       return;
     }
     setState(() => _saving = true);
@@ -214,14 +220,14 @@ class _AddDebtPageState extends State<AddDebtPage> {
         if (_audioPath != null) 'audio_path': _audioPath,
       };
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-      final res = await http.post(Uri.parse('$apiHost/debts'), headers: headers, body: json.encode(body)).timeout(Duration(seconds: 8));
+      final res = await http.post(Uri.parse('$apiHost/debts'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
       if (res.statusCode == 201) {
         Navigator.of(context).pop(true);
       } else {
-        await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Échec création dette: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+        await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec création dette: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
       }
     } catch (e) {
-      await showDialog(context: context, builder: (ctx) => AlertDialog(title: Text('Erreur'), content: Text('Erreur création dette: $e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK'))]));
+      await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Erreur création dette: $e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -236,20 +242,20 @@ class _AddDebtPageState extends State<AddDebtPage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        title: Text('Ajouter une dette', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text('Ajouter une dette', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 640),
+              constraints: const BoxConstraints(maxWidth: 640),
               child: Card(
                 color: cardColor,
                 elevation: 6,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -257,12 +263,12 @@ class _AddDebtPageState extends State<AddDebtPage> {
                       children: [
                       // Client selector
                       Text('Client', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<int>(
-                              value: _clientId,
+                              initialValue: _clientId,
                               isExpanded: true,
                               items: widget.clients.map<DropdownMenuItem<int>>((cl) {
                                 final clientNumber = (cl['client_number'] ?? '').toString().isNotEmpty ? ' (${cl['client_number']})' : '';
@@ -276,27 +282,27 @@ class _AddDebtPageState extends State<AddDebtPage> {
                                 filled: true,
                                 fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               ),
                             ),
                           ),
-                          SizedBox(width: 10),
-                          Container(
+                          const SizedBox(width: 10),
+                          SizedBox(
                             height: 48,
                             child: ElevatedButton.icon(
                               onPressed: _saving ? null : _createClientInline,
                               icon: Icon(Icons.person_add, size: 18, color: Theme.of(context).elevatedButtonTheme.style?.foregroundColor?.resolve({}) ?? Colors.white),
                               label: Text('', style: TextStyle(color: Theme.of(context).elevatedButtonTheme.style?.foregroundColor?.resolve({}) ?? Colors.white)),
-                              style: ElevatedButton.styleFrom(backgroundColor: accent, padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              style: ElevatedButton.styleFrom(backgroundColor: accent, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                             ),
                           )
                         ],
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       // Amount field (large)
                       Text('Montant', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: _amountCtl,
                         keyboardType: TextInputType.number,
@@ -307,12 +313,12 @@ class _AddDebtPageState extends State<AddDebtPage> {
                           filled: true,
                           fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                         ),
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Entrez un montant' : null,
                         autofocus: true,
                       ),
-                      SizedBox(height: 14),
+                      const SizedBox(height: 14),
 
                       // Due date & quick info
                       Row(
@@ -321,13 +327,13 @@ class _AddDebtPageState extends State<AddDebtPage> {
                           TextButton(onPressed: _pickDue, child: Text('Choisir', style: TextStyle(color: accent)))
                         ],
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
                       // Audio Recording
                       Text('Enregistrement audio (optionnel)', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                           borderRadius: BorderRadius.circular(12),
@@ -344,63 +350,63 @@ class _AddDebtPageState extends State<AddDebtPage> {
                                     onPressed: _saving ? null : (_isRecording ? _stopRecording : _startRecording),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _isRecording ? Colors.red : accent,
-                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
-                                    child: Text(_isRecording ? 'Arrêter' : 'Démarrer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black)),
+                                    child: Text(_isRecording ? 'Arrêter' : 'Démarrer', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black)),
                                   ),
                                 ],
                               )
                             else
                               Row(
                                 children: [
-                                  Expanded(
+                                  const Expanded(
                                     child: Text('✅ Enregistrement sauvegardé', style: TextStyle(color: Colors.green)),
                                   ),
                                   ElevatedButton.icon(
                                     onPressed: _saving ? null : _playAudio,
-                                    icon: Icon(Icons.play_arrow, size: 16),
-                                    label: Text('Écouter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                    icon: const Icon(Icons.play_arrow, size: 16),
+                                    label: const Text('Écouter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: accent,
-                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   IconButton(
-                                    icon: Icon(Icons.delete, size: 18, color: Colors.red),
+                                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
                                     onPressed: _saving ? null : _deleteAudio,
                                     padding: EdgeInsets.zero,
-                                    constraints: BoxConstraints(),
+                                    constraints: const BoxConstraints(),
                                   ),
                                 ],
                               ),
                           ],
                         ),
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
                       // Notes
                       Text('Notes (optionnel)', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: _notesCtl,
                         maxLines: 3,
                         decoration: InputDecoration(
-                          hintText: 'Ex : A pris 1 kg de sucre',
+                          hintText: 'Ex: 1 kg de sucre',
                           filled: true,
                           fillColor: Theme.of(context).inputDecorationTheme.fillColor ?? Theme.of(context).scaffoldBackgroundColor,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
 
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       Divider(color: Theme.of(context).dividerColor),
 
                       // Actions
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -408,18 +414,18 @@ class _AddDebtPageState extends State<AddDebtPage> {
                               onPressed: _saving ? null : _submit,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: accent,
-                                padding: EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: 0,
                               ),
                               child: _saving
                                   ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Theme.of(context).colorScheme.onPrimary, strokeWidth: 2))
-                                  : Text('Enregistrer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
+                                  : const Text('Enregistrer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: TextButton(
