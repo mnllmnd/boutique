@@ -220,4 +220,89 @@ router.get('/balances/:user', async (req, res) => {
   }
 });
 
+// Add amount to an existing debt. Body: { amount, added_at (optional), notes }
+router.post('/:id/add', async (req, res) => {
+  const { id } = req.params;
+  const { amount, added_at, notes } = req.body;
+  try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    // ensure debt belongs to owner
+    const debtRes = await pool.query('SELECT creditor, amount FROM debts WHERE id=$1', [id]);
+    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
+
+    const addedAtTime = added_at || new Date();
+    const insert = await pool.query(
+      'INSERT INTO debt_additions (debt_id, amount, added_at, notes) VALUES ($1, $2, $3, $4) RETURNING *',
+      [id, amount, addedAtTime, notes]
+    );
+
+    // Update the debt's total amount
+    const newTotalAmount = parseFloat(debtRes.rows[0].amount) + parseFloat(amount);
+    await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [newTotalAmount, id]);
+
+    // log addition activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'debt_addition', JSON.stringify({ addition_id: insert.rows[0].id, debt_id: id, amount })]);
+    } catch (e) { console.error('Activity log error:', e); }
+
+    res.status(201).json({ addition: insert.rows[0], new_debt_amount: newTotalAmount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Get all additions for a debt
+router.get('/:id/additions', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    // ensure debt belongs to owner
+    const debtRes = await pool.query('SELECT creditor FROM debts WHERE id=$1', [id]);
+    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
+
+    const result = await pool.query('SELECT * FROM debt_additions WHERE debt_id=$1 ORDER BY added_at DESC', [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Delete an addition
+router.delete('/:id/additions/:additionId', async (req, res) => {
+  const { id, additionId } = req.params;
+  try {
+    const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
+    // ensure debt belongs to owner
+    const debtRes = await pool.query('SELECT creditor, amount FROM debts WHERE id=$1', [id]);
+    if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
+    if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
+
+    // get the addition to know how much to subtract
+    const addRes = await pool.query('SELECT amount FROM debt_additions WHERE id=$1 AND debt_id=$2', [additionId, id]);
+    if (addRes.rowCount === 0) return res.status(404).json({ error: 'Addition not found' });
+    const additionAmount = parseFloat(addRes.rows[0].amount);
+
+    // delete the addition
+    await pool.query('DELETE FROM debt_additions WHERE id=$1', [additionId]);
+
+    // Update the debt's total amount (subtract the addition)
+    const newTotalAmount = parseFloat(debtRes.rows[0].amount) - additionAmount;
+    await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [Math.max(newTotalAmount, 0), id]);
+
+    // log deletion activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'delete_addition', JSON.stringify({ addition_id: additionId, debt_id: id, amount: additionAmount })]);
+    } catch (e) { console.error('Activity log error:', e); }
+
+    res.json({ success: true, new_debt_amount: Math.max(newTotalAmount, 0) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 module.exports = router;

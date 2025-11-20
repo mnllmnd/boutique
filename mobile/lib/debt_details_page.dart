@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
 import 'add_payment_page.dart';
+import 'add_addition_page.dart';
 import 'data/audio_service.dart';
 
 class DebtDetailsPage extends StatefulWidget {
@@ -20,6 +21,7 @@ class DebtDetailsPage extends StatefulWidget {
 
 class _DebtDetailsPageState extends State<DebtDetailsPage> {
   List payments = [];
+  List additions = [];
   bool _loading = false;
   bool _changed = false;
   late AudioService _audioService;
@@ -37,6 +39,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
     super.initState();
     _audioService = AudioService();
     _loadPayments();
+    _loadAdditions();
   }
 
   @override
@@ -58,11 +61,34 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
     }
   }
 
+  Future<void> _loadAdditions() async {
+    try {
+      final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
+      final res = await http.get(Uri.parse('$apiHost/debts/${widget.debt['id']}/additions'), headers: headers).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        if (mounted) setState(() => additions = json.decode(res.body) as List);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   Future<void> _addPayment() async {
     final res = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddPaymentPage(ownerPhone: widget.ownerPhone, debt: widget.debt)));
     if (res == true) {
       _changed = true;
       await _loadPayments();
+      setState(() {});
+    }
+  }
+
+  Future<void> _addAddition() async {
+    final res = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddAdditionPage(ownerPhone: widget.ownerPhone, debt: widget.debt)),
+    );
+    if (res == true) {
+      _changed = true;
+      await _loadAdditions();
       setState(() {});
     }
   }
@@ -258,12 +284,19 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
         centerTitle: true,
         actions: [
           IconButton(
+            onPressed: _addAddition,
+            icon: Icon(Icons.add_circle, color: Colors.orange, size: 20),
+            tooltip: 'Ajouter un montant',
+          ),
+          IconButton(
             onPressed: _addPayment,
-            icon: Icon(Icons.add, color: textColor, size: 20),
+            icon: Icon(Icons.payment, color: textColor, size: 20),
+            tooltip: 'Ajouter un paiement',
           ),
           IconButton(
             onPressed: _deleteDebt,
             icon: Icon(Icons.delete_outline, color: Colors.red, size: 20),
+            tooltip: 'Supprimer',
           ),
         ],
       ),
@@ -504,6 +537,110 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
                   ),
                 ),
               ],
+
+              // Additions Section
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'MONTANTS AJOUTÉS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.5,
+                      color: textColorSecondary,
+                    ),
+                  ),
+                  Text(
+                    '${additions.length} MONTANT${additions.length > 1 ? 'S' : ''}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.5,
+                      color: textColorSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (additions.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor, width: 0.5),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.add_circle_outline, size: 48, color: textColorSecondary),
+                      const SizedBox(height: 16),
+                      Text(
+                        'AUCUN MONTANT AJOUTÉ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textColorSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Aucun montant ajouté à cette dette',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColorSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...additions.map((a) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: borderColor, width: 0.5),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${NumberFormat('#,###', 'fr_FR').format(double.tryParse(a['amount'].toString()) ?? 0)} FCFA',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                                Text(
+                                  _fmtDate(a['added_at']),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textColorSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (a['notes'] != null && (a['notes'] as String).isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                a['notes'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textColor,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )).toList(),
 
               // Payments Section
               const SizedBox(height: 32),
