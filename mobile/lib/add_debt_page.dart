@@ -840,6 +840,9 @@ class _AddDebtPageState extends State<AddDebtPage> with SingleTickerProviderStat
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
     final borderColor = isDark ? Colors.white24 : Colors.black26;
+    
+    // Couleur subtile mauve/violette
+    const subtleAccent = Color.fromARGB(255, 167, 139, 250);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -918,7 +921,7 @@ class _AddDebtPageState extends State<AddDebtPage> with SingleTickerProviderStat
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w500,
-                                        color: textColorSecondary,
+                                        color: subtleAccent.withOpacity(0.6),
                                       ),
                                     ),
                                     border: InputBorder.none,
@@ -991,7 +994,7 @@ class _AddDebtPageState extends State<AddDebtPage> with SingleTickerProviderStat
                                       icon: Icon(
                                         Icons.person_add_outlined,
                                         size: 20,
-                                        color: textColorSecondary,
+                                        color: subtleAccent.withOpacity(0.7),
                                       ),
                                       padding: EdgeInsets.zero,
                                     ),
@@ -1045,7 +1048,7 @@ class _AddDebtPageState extends State<AddDebtPage> with SingleTickerProviderStat
                                       Icon(
                                         Icons.chevron_right,
                                         size: 18,
-                                        color: textColorSecondary,
+                                        color: subtleAccent.withOpacity(0.4),
                                       ),
                                     ],
                                   ),

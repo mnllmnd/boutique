@@ -199,11 +199,15 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _loading ? null : _submit,
-                   style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.orange,
-                              side: BorderSide(color: Colors.orange.withOpacity(0.5)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.white : Colors.black,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    disabledBackgroundColor: isDark ? Colors.white24 : Colors.black26,
+                    disabledForegroundColor: isDark ? Colors.black38 : Colors.white54,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                  ),
                   child: _loading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : Text('ENREGISTRER LE PAIEMENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.black : Colors.white)),
