@@ -875,14 +875,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ✅ CORRIGÉ : Calcul du total par client
-  double _clientTotalRemaining(dynamic clientId) {
-    // Ne pas additionner plusieurs enregistrements potentiellement dupliqués.
-    // Prendre la dette la plus récente pour ce client.
-    final clientDebts = debts.where((d) => d != null && d['client_id'] == clientId).toList();
-    if (clientDebts.isEmpty) return 0.0;
-    dynamic latest = clientDebts.reduce((a, b) => _tsForDebt(b) >= _tsForDebt(a) ? b : a);
-    return ((latest['remaining'] as num?)?.toDouble() ?? 0.0);
+ // ✅ CORRIGÉ : Calcul du total par client
+double _clientTotalRemaining(dynamic clientId) {
+  // Ne pas additionner plusieurs enregistrements potentiellement dupliqués.
+  // Prendre la dette la plus récente pour ce client.
+  final clientDebts = debts.where((d) => d != null && d['client_id'] == clientId).toList();
+  if (clientDebts.isEmpty) return 0.0;
+  
+  // Avoid reduce entirely to prevent type issues - use a simple loop instead
+  dynamic latest = clientDebts[0];
+  double latestTs = _tsForDebt(latest);
+  
+  for (int i = 1; i < clientDebts.length; i++) {
+    final current = clientDebts[i];
+    final currentTs = _tsForDebt(current);
+    if (currentTs >= latestTs) {
+      latest = current;
+      latestTs = currentTs;
+    }
   }
+  
+  return ((latest['remaining'] as num?)?.toDouble() ?? 0.0);
+}
 
   // ✅ CORRIGÉ : Calcul du total général
   // ✅ NOUVEAU : Calcul du solde net basé sur balance (universel)
@@ -2305,20 +2319,31 @@ final choice = await showModalBottomSheet<String>(
   }
 
   Widget _buildClientsTab() {
-    final List<dynamic> filtered = clients.where((c) {
-      if (_searchQuery.isEmpty) return true;
-      final name = (c['name'] ?? '').toString().toLowerCase();
-      return name.contains(_searchQuery.toLowerCase());
-    }).toList();
+    List<dynamic> filtered = [];
+    for (final c in clients) {
+      if (_searchQuery.isEmpty) {
+        filtered.add(c);
+      } else {
+        final name = (c['name'] ?? '').toString().toLowerCase();
+        if (name.contains(_searchQuery.toLowerCase())) {
+          filtered.add(c);
+        }
+      }
+    }
 
     filtered.sort((dynamic a, dynamic b) {
-      final ra = _clientTotalRemaining(a['id']);
-      final rb = _clientTotalRemaining(b['id']);
-      final sa = ra > 0 ? 0 : 1;
-      final sb = rb > 0 ? 0 : 1;
-      if (sa != sb) return sa - sb;
-      return a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase());
-    });
+  if (a == null || b == null) return 0;
+  final ra = _clientTotalRemaining(a['id']);
+  final rb = _clientTotalRemaining(b['id']);
+  final sa = ra > 0 ? 0 : 1;
+  final sb = rb > 0 ? 0 : 1;
+  if (sa != sb) return sa - sb;
+  
+  // Use explicit string comparison to avoid type issues
+  final nameA = (a['name'] ?? '').toString().toLowerCase();
+  final nameB = (b['name'] ?? '').toString().toLowerCase();
+  return nameA.compareTo(nameB);
+});
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
@@ -2332,7 +2357,6 @@ final choice = await showModalBottomSheet<String>(
         itemCount: filtered.length,
         itemBuilder: (ctx, i) {
           final c = filtered[i];
-          final totalRemaining = _clientTotalRemaining(c['id']);
           
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -2359,147 +2383,426 @@ final choice = await showModalBottomSheet<String>(
                   color: textColorSecondary,
                 ),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Builder(builder: (_) {
-                        final bool clientOwe = totalRemaining < 0;
-                        final clientDebts = debts.where((d) => d['client_id'] == c['id']).toList();
-                        final bool isLoan = clientDebts.isNotEmpty && clientDebts.first['type'] == 'loan'; // ✅ Vérifier le type
-                        
-                        return Text(
-                          isLoan ? 'JE DOIS' : (clientOwe ? 'JE DOIS' : 'À PERCEVOIR'),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: textColorSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 2),
-                      Builder(builder: (_) {
-                        final bool clientOwe = totalRemaining < 0;
-                        final clientDebts = debts.where((d) => d['client_id'] == c['id']).toList();
-                        final bool isLoan = clientDebts.isNotEmpty && clientDebts.first['type'] == 'loan'; // ✅ Vérifier le type
-                        final display = isLoan || clientOwe
-                            ? AppSettings().formatCurrency(totalRemaining.abs())
-                            : AppSettings().formatCurrency(totalRemaining);
-                        final Color col = isLoan || clientOwe
-                            ? const Color.fromARGB(231, 141, 47, 219)
-                            : (totalRemaining > 0 ? Colors.orange : Colors.green);
-                        return Text(
-                          display,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: col,
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  PopupMenuButton<String>(
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    onSelected: (v) async {
-                      if (v == 'payment') {
-                        final debtWithClient = debts.firstWhere(
-                          (d) => d['client_id'] == c['id'],
-                          orElse: () => null,
-                        );
-                        if (debtWithClient != null) {
-                          final res = await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => AddPaymentPage(
-                                ownerPhone: widget.ownerPhone,
-                                debt: debtWithClient,
-                              ),
-                            ),
-                          );
-                          if (res == true) {
-                            await fetchDebts();
-                          }
+              trailing: PopupMenuButton<String>(
+                constraints: const BoxConstraints(maxWidth: 200),
+                onSelected: (v) async {
+                  if (v == 'delete') {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('Supprimer le ${_getTermClient()}'),
+                        content: Text('Voulez-vous vraiment supprimer ${c['name'] ?? 'ce ${_getTermClient()}'} ?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+                          ElevatedButton(onPressed: () => Navigator.of(ctx).pop(true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Supprimer')),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      try {
+                        final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
+                        final res = await http.delete(Uri.parse('$apiHost/clients/${c['id']}'), headers: headers).timeout(const Duration(seconds: 8));
+                        if (res.statusCode == 200) {
+                          await fetchClients();
+                          await fetchDebts();
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_getTermClientUp()} supprimé')));
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Aucune dette trouvée pour ce client')),
-                          );
+                          if (mounted) await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec suppression: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
                         }
-                      } else if (v == 'debt') {
-                        final res = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => AddDebtPage(
-                              ownerPhone: widget.ownerPhone,
-                              clients: clients,
-                              preselectedClientId: c['id'],
-                            ),
-                          ),
-                        );
-                        if (res == true) {
-                          await fetchDebts();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dette ajoutée')),
-                          );
-                        }
-                      } else if (v == 'loan') {
-                        // ✅ NOUVEAU : Créer un emprunt
-                        final result = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => AddLoanPage(
-                              ownerPhone: widget.ownerPhone,
-                              clients: clients,
-                            ),
-                          ),
-                        );
-                        if (result == true) {
-                          await fetchDebts();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Emprunt créé')),
-                          );
-                        }
+                      } catch (e) {
+                        if (mounted) await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur réseau'), content: Text('$e'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
                       }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem<String>(
-                        value: 'payment',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Text('Ajouter paiement', style: TextStyle(color: textColor)),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem<String>(
-                        value: 'debt',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.add, size: 18, color: Colors.orange),
-                            const SizedBox(width: 8),
-                            Text('Créer une dette', style: TextStyle(color: textColor)),
-                          ],
-                        ),
-                      ),
-                      // ✅ NOUVEAU : Option emprunt
-                      PopupMenuItem<String>(
-                        value: 'loan',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.account_balance_wallet, size: 18, color: Color.fromARGB(255, 141, 47, 219)),
-                            const SizedBox(width: 8),
-                            Text('Créer un emprunt', style: TextStyle(color: textColor)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    offset: const Offset(0, 40),
-                    child: Icon(Icons.more_vert, color: textColor, size: 16),
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, size: 18, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text('Supprimer ${_getTermClient()}', style: TextStyle(color: textColor)),
+                      ],
+                    ),
                   ),
+                ],
+                offset: const Offset(0, 40),
+                child: Icon(Icons.more_vert, color: textColor, size: 16),
+              ),
+              onTap: () {
+  // Récupérer toutes les dettes du client
+  final clientDebts = debts.where((d) => d['client_id'] == c['id']).toList();
+  
+  if (clientDebts.isEmpty) {
+    // Aucune dette - proposer de créer un prêt ou un emprunt
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+        final textColor = isDark ? Colors.white : Colors.black;
+        
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.08),
+                width: 1,
+              ),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Aucune transaction',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Ce ${_getTermClient()} n\'a aucune transaction.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AddDebtPage(
+                                  ownerPhone: widget.ownerPhone,
+                                  clients: clients,
+                                  preselectedClientId: c['id'],
+                                ),
+                              ),
+                            );
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD86C01).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFD86C01).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.arrow_upward_rounded,
+                                color: Color(0xFFD86C01),
+                                size: 24,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Prêter',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFD86C01),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 12),
+                    
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AddLoanPage(
+                                  ownerPhone: widget.ownerPhone,
+                                  clients: clients,
+                                ),
+                              ),
+                            );
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF312157).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF312157).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.arrow_downward_rounded,
+                                color: Color(0xFF312157),
+                                size: 24,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Emprunter',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF312157),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Annuler',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textColor.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-              onTap: () => _showClientActions(c, c['id']),
+          ),
+        );
+      },
+    );
+  } else if (clientDebts.length == 1) {
+    // Une seule dette - rediriger directement
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DebtDetailsPage(ownerPhone: widget.ownerPhone, debt: clientDebts.first),
+      ),
+    );
+  } else {
+    // Plusieurs dettes - demander à l'utilisateur de choisir
+    final prets = clientDebts.where((d) => (d['type'] ?? 'debt') == 'debt').toList();
+    final emprunts = clientDebts.where((d) => (d['type'] ?? 'debt') == 'loan').toList();
+    
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+        final textColor = isDark ? Colors.white : Colors.black;
+        
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.08),
+                width: 1,
+              ),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Choisir la transaction',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Ce ${_getTermClient()} a ${clientDebts.length} transactions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                Row(
+                  children: [
+                    if (prets.isNotEmpty)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            Future.delayed(const Duration(milliseconds: 300), () {
+                              dynamic latestPret = prets[0];
+                              double latestTs = _tsForDebt(latestPret);
+                              
+                              for (int i = 1; i < prets.length; i++) {
+                                final current = prets[i];
+                                final currentTs = _tsForDebt(current);
+                                if (currentTs >= latestTs) {
+                                  latestPret = current;
+                                  latestTs = currentTs;
+                                }
+                              }
+                              
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => DebtDetailsPage(ownerPhone: widget.ownerPhone, debt: latestPret),
+                                ),
+                              );
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD86C01).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFD86C01).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: Color(0xFFD86C01),
+                                  size: 24,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  prets.length > 1 ? 'Prêts (${prets.length})' : 'Prêt',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFD86C01),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    
+                    if (prets.isNotEmpty && emprunts.isNotEmpty)
+                      const SizedBox(width: 12),
+                    
+                    if (emprunts.isNotEmpty)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(ctx).pop();
+                            Future.delayed(const Duration(milliseconds: 300), () {
+                              dynamic latestEmprunt = emprunts[0];
+                              double latestTs = _tsForDebt(latestEmprunt);
+                              
+                              for (int i = 1; i < emprunts.length; i++) {
+                                final current = emprunts[i];
+                                final currentTs = _tsForDebt(current);
+                                if (currentTs >= latestTs) {
+                                  latestEmprunt = current;
+                                  latestTs = currentTs;
+                                }
+                              }
+                              
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => DebtDetailsPage(ownerPhone: widget.ownerPhone, debt: latestEmprunt),
+                                ),
+                              );
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF312157).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF312157).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.arrow_downward_rounded,
+                                  color: Color(0xFF312157),
+                                  size: 24,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  emprunts.length > 1 ? 'Emprunts (${emprunts.length})' : 'Emprunt',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF312157),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Annuler',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textColor.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+},
               onLongPress: () async {
                 final num = c['client_number'] ?? '';
                 if (num != null && num.toString().isNotEmpty) {
