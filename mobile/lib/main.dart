@@ -180,9 +180,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _tabIndex = 0;
+  String _debtSubTab = 'prets'; // 'prets' ou 'emprunts'
   List debts = [];
   List clients = [];
-  String? _focusedTotalCard;
   String _searchQuery = '';
   bool _isSearching = false;
   bool _showTotalCard = true;
@@ -211,7 +211,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _focusedTotalCard = null;
     _loadBoutique();
     fetchClients();
     fetchDebts();
@@ -288,7 +287,7 @@ class _HomePageState extends State<HomePage> {
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop('delete'),
-            child: Row(children: [const Icon(Icons.delete, color: Colors.red), const SizedBox(width: 12), Text('Supprimer client', style: TextStyle(color: textColor))]),
+            child: Row(children: [const Icon(Icons.delete, color: Colors.red), const SizedBox(width: 12), Text('Supprimer ${_getTermClient()}', style: TextStyle(color: textColor))]),
           ),
         ],
       ),
@@ -316,8 +315,8 @@ class _HomePageState extends State<HomePage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: const Text('Supprimer le client'),
-          content: Text('Voulez-vous vraiment supprimer ${client['name'] ?? 'ce client'} ?'),
+          title: Text('Supprimer le ${_getTermClient()}'),
+          content: Text('Voulez-vous vraiment supprimer ${client['name'] ?? 'ce ${_getTermClient()}'} ?'),
           actions: [
             TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Annuler')),
             ElevatedButton(onPressed: () => Navigator.of(c).pop(true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Supprimer')),
@@ -332,7 +331,7 @@ class _HomePageState extends State<HomePage> {
           if (res.statusCode == 200) {
             await fetchClients();
             await fetchDebts();
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Client supprimé')));
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_getTermClientUp()} supprimé')));
           } else {
             if (mounted) await showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text('Erreur'), content: Text('Échec suppression: ${res.statusCode}\n${res.body}'), actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))]));
           }
@@ -956,6 +955,15 @@ class _HomePageState extends State<HomePage> {
     return total;
   }
 
+  // 🆕 Fonction helper pour déterminer le terme "Client" ou "Contact"
+  String _getTermClient() {
+    return AppSettings().boutiqueModeEnabled ? 'client' : 'contact';
+  }
+
+  String _getTermClientUp() {
+    return AppSettings().boutiqueModeEnabled ? 'CLIENT' : 'CONTACT';
+  }
+
   // Build client avatar similar to DebtDetailsPage
   String _getInitials(String name) {
     final parts = name.split(' ');
@@ -982,7 +990,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildClientAvatarWidget(dynamic client, double size) {
     final hasAvatar = client != null && client['avatar_url'] != null && client['avatar_url'].toString().isNotEmpty;
-    final clientName = client != null ? (client['name'] ?? 'Client') : 'Client';
+    final clientName = client != null ? (client['name'] ?? (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact')) : (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact');
     final initials = _getInitials(clientName.toString());
 
     return Container(
@@ -1032,8 +1040,8 @@ class _HomePageState extends State<HomePage> {
       final add = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: const Text('Aucun client'),
-          content: const Text('Aucun client trouvé. Voulez-vous en ajouter un maintenant ?'),
+          title: Text('Aucun ${_getTermClient()}'),
+          content: Text('Aucun ${_getTermClient()} trouvé. Voulez-vous en ajouter un maintenant ?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(c).pop(false),
@@ -1041,7 +1049,7 @@ class _HomePageState extends State<HomePage> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(c).pop(true),
-              child: const Text('Ajouter client'),
+              child: Text('Ajouter ${_getTermClient()}'),
             ),
           ],
         ),
@@ -1055,121 +1063,161 @@ class _HomePageState extends State<HomePage> {
       }
       return;
     }
+    Widget _actionCard({
+  required bool isDark,
+  required IconData icon,
+  required Color color,
+  required String title,
+  required String subtitle,
+}) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: isDark ? Colors.black : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: color.withOpacity(0.3),
+        width: 1,
+      ),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 24, color: color),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black)),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey)),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
-    // Show bottom sheet with PRÊTER and EMPRUNTER options
+final choice = await showModalBottomSheet<String>(
+  context: context,
+  backgroundColor: Colors.transparent,
+  builder: (ctx) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
 
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'AJOUTER UNE TRANSACTION',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: () => Navigator.of(ctx).pop('preter'),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.green.withOpacity(0.3),
-                    width: 1,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.arrow_upward, size: 24, color: Colors.green),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PRÊTER',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Je donne l\'argent au client',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () => Navigator.of(ctx).pop('emprunter'),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.blue.withOpacity(0.3),
-                    width: 1,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.arrow_downward, size: 24, color: Colors.blue),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'EMPRUNTER',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Je reçois l\'argent du client',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.08),
+          width: 1.3,
         ),
       ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Nouvelle transaction',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Boutons côte à côte
+          Row(
+            children: [
+              // PRÊTER
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop('preter'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD86C01).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFD86C01).withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Color(0xFFD86C01),
+                          size: 28,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Prêter',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFD86C01),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // EMPRUNTER
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop('emprunter'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF312157).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color.fromARGB(255, 125, 29, 125).withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.arrow_downward_rounded,
+                          color: Color.fromARGB(255, 125, 29, 125),
+                          size: 28,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Emprunter',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color.fromARGB(255, 125, 29, 125),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  },
+);
 
     if (choice == 'preter') {
       await createDebt();
@@ -1247,6 +1295,13 @@ class _HomePageState extends State<HomePage> {
       }).toList();
     }
 
+    // Filtrer par sous-onglet actif (PRÊTS ou EMPRUNTS)
+    if (_debtSubTab == 'prets') {
+      filteredDebts = filteredDebts.where((d) => (d['type'] ?? 'debt') == 'debt').toList();
+    } else if (_debtSubTab == 'emprunts') {
+      filteredDebts = filteredDebts.where((d) => (d['type'] ?? 'debt') == 'loan').toList();
+    }
+
     // Grouper par client ET type (debt/loan) pour afficher séparément prêts et emprunts
     final Map<String, List> grouped = {};
     for (final d in filteredDebts) {
@@ -1276,26 +1331,55 @@ class _HomePageState extends State<HomePage> {
       return 0;
     });
 
-    // Séparer les groupes récents en PRÊTS puis EMPRUNTS pour que
-    // les clients récents apparaissent dans la section correspondante.
+    // Séparer les groupes récents en PRÊTS puis EMPRUNTS strictement
     final prets = groups.where((e) => e.key.toString().endsWith('|debt')).toList();
     final emprunts = groups.where((e) => e.key.toString().endsWith('|loan')).toList();
     final others = groups.where((e) => !e.key.toString().endsWith('|debt') && !e.key.toString().endsWith('|loan')).toList();
 
-    groups = [...prets, ...emprunts, ...others];
+    // Nous n'afficherons PAS les emprunts dans la section prêts et vice-versa.
+    // Reste possible de montrer 'others' (types inconnus) après.
+    groups = [...prets, ...others, ...emprunts];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
     final borderColor = isDark ? Colors.white24 : Colors.black26;
 
+    // Préparer la liste rendue des récents selon le sous-onglet actif
+    final List<dynamic> recentItems = [];
+    if (_debtSubTab == 'prets') {
+      recentItems.addAll(prets);
+      if (others.isNotEmpty) {
+        recentItems.add('OTHERS_HEADER');
+        recentItems.addAll(others);
+      }
+    } else if (_debtSubTab == 'emprunts') {
+      recentItems.addAll(emprunts);
+      if (others.isNotEmpty) {
+        recentItems.add('OTHERS_HEADER');
+        recentItems.addAll(others);
+      }
+    } else {
+      recentItems.addAll(prets);
+      if (others.isNotEmpty) {
+        recentItems.add('OTHERS_HEADER');
+        recentItems.addAll(others);
+      }
+      if (emprunts.isNotEmpty) {
+        recentItems.add('EMPRUNTS_HEADER');
+        recentItems.addAll(emprunts);
+      }
+    }
+
     return RefreshIndicator(
       onRefresh: () async => await fetchDebts(),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: groups.length + 2,
+        // 1 header + recentItems + 1 risk box
+        itemCount: 1 + recentItems.length + 1,
         itemBuilder: (ctx, gi) {
           if (gi == 0) {
+            // Main header (totals, filter, etc.)
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1313,7 +1397,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         // Affiche soit le solde net, soit le total sélectionné (PRÊTS/EMPRUNTS)
                         Builder(builder: (_) {
-                          if (_focusedTotalCard == 'prets') {
+                          if (_debtSubTab == 'prets') {
                             return Text(
                               'PRÊTS',
                               style: TextStyle(
@@ -1324,7 +1408,7 @@ class _HomePageState extends State<HomePage> {
                               ),
                             );
                           }
-                          if (_focusedTotalCard == 'emprunts') {
+                          if (_debtSubTab == 'emprunts') {
                             return Text(
                               'EMPRUNTS',
                               style: TextStyle(
@@ -1364,10 +1448,10 @@ class _HomePageState extends State<HomePage> {
                                     double displayValue = 0.0;
                                     Color amtColor = textColor;
 
-                                    if (_focusedTotalCard == 'prets') {
+                                    if (_debtSubTab == 'prets') {
                                       displayValue = totalPrets;
                                       amtColor = Colors.orange;
-                                    } else if (_focusedTotalCard == 'emprunts') {
+                                    } else if (_debtSubTab == 'emprunts') {
                                       displayValue = totalEmprunts;
                                       amtColor = Colors.purple;
                                     } else {
@@ -1402,21 +1486,28 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _focusedTotalCard = _focusedTotalCard == 'prets' ? null : 'prets'),
+                                onTap: () => setState(() => _debtSubTab = _debtSubTab == 'prets' ? '' : 'prets'),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.orange.withOpacity(0.08),
-                                        Colors.orange.withOpacity(0.03),
-                                      ],
+                                      colors: _debtSubTab == 'prets'
+                                          ? [
+                                              Colors.orange.withOpacity(0.20),
+                                              Colors.orange.withOpacity(0.10),
+                                            ]
+                                          : [
+                                              Colors.orange.withOpacity(0.08),
+                                              Colors.orange.withOpacity(0.03),
+                                            ],
                                     ),
                                     border: Border.all(
-                                      color: Colors.orange.withOpacity(0.2),
-                                      width: 0.5,
+                                      color: _debtSubTab == 'prets'
+                                          ? Colors.orange.withOpacity(0.6)
+                                          : Colors.orange.withOpacity(0.2),
+                                      width: _debtSubTab == 'prets' ? 1.5 : 0.5,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1437,6 +1528,11 @@ class _HomePageState extends State<HomePage> {
                                               letterSpacing: 1,
                                             ),
                                           ),
+                                          if (_debtSubTab == 'prets')
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 4),
+                                              child: Icon(Icons.check_circle, size: 12, color: Colors.orange),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
@@ -1465,21 +1561,28 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _focusedTotalCard = _focusedTotalCard == 'emprunts' ? null : 'emprunts'),
+                                onTap: () => setState(() => _debtSubTab = _debtSubTab == 'emprunts' ? '' : 'emprunts'),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.purple.withOpacity(0.08),
-                                        Colors.purple.withOpacity(0.03),
-                                      ],
+                                      colors: _debtSubTab == 'emprunts'
+                                          ? [
+                                              Colors.purple.withOpacity(0.20),
+                                              Colors.purple.withOpacity(0.10),
+                                            ]
+                                          : [
+                                              Colors.purple.withOpacity(0.08),
+                                              Colors.purple.withOpacity(0.03),
+                                            ],
                                     ),
                                     border: Border.all(
-                                      color: Colors.purple.withOpacity(0.2),
-                                      width: 0.5,
+                                      color: _debtSubTab == 'emprunts'
+                                          ? Colors.purple.withOpacity(0.6)
+                                          : Colors.purple.withOpacity(0.2),
+                                      width: _debtSubTab == 'emprunts' ? 1.5 : 0.5,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1500,6 +1603,11 @@ class _HomePageState extends State<HomePage> {
                                               letterSpacing: 1,
                                             ),
                                           ),
+                                          if (_debtSubTab == 'emprunts')
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 4),
+                                              child: Icon(Icons.check_circle, size: 12, color: Colors.purple),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
@@ -1723,7 +1831,8 @@ class _HomePageState extends State<HomePage> {
           }
 
           // 💎 CLIENTS À RISQUE - afficher à la fin
-          if (gi == groups.length + 1) {
+          final int riskIndex = 1 + recentItems.length; // last item
+          if (gi == riskIndex) {
             if (totalUnpaid <= 0) return const SizedBox.shrink();
 
             return Builder(
@@ -1754,7 +1863,7 @@ class _HomePageState extends State<HomePage> {
                           const Icon(Icons.trending_down, size: 14, color: Colors.red),
                           const SizedBox(width: 8),
                           Text(
-                            'CLIENTS À RISQUE',
+                            '${_getTermClientUp()}S À RISQUE',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
@@ -1772,7 +1881,7 @@ class _HomePageState extends State<HomePage> {
                       final cid = item.key;
                       final amount = item.value;
                       final client = clients.firstWhere((x) => x['id'] == cid, orElse: () => null);
-                      final clientName = client != null ? client['name']?.toString().toUpperCase() ?? 'Client' : 'Client inconnu';
+                      final clientName = client != null ? client['name']?.toString().toUpperCase() ?? (AppSettings().boutiqueModeEnabled ? 'CLIENT' : 'CONTACT') : (AppSettings().boutiqueModeEnabled ? 'CLIENT INCONNU' : 'CONTACT INCONNU');
 
                       return Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1835,7 +1944,25 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          final entry = groups[gi - 1];
+          // Rendu des entrées récentes (prets / others / emprunts) selon recentItems
+          final idx = gi - 1; // index into recentItems
+          final item = recentItems[idx];
+          if (item is String) {
+            // section header markers
+            if (item == 'OTHERS_HEADER') {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 6, left: 4),
+                child: Text('AUTRES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColorSecondary)),
+              );
+            }
+            if (item == 'EMPRUNTS_HEADER') {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 6, left: 4),
+                child: Text('EMPRUNTS RÉCENTS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColorSecondary)),
+              );
+            }
+          }
+          final entry = item as MapEntry<String, List>;
           final compositeKey = entry.key.toString();
           final clientDebts = entry.value;
           final parts = compositeKey.split('|');
@@ -1843,7 +1970,7 @@ class _HomePageState extends State<HomePage> {
           final txType = parts.length > 1 ? parts[1] : 'debt';
           final dynamic clientId = clientIdPart == 'unknown' ? 'unknown' : (int.tryParse(clientIdPart) ?? clientIdPart);
           final client = clients.firstWhere((x) => x['id'] == clientId, orElse: () => null);
-          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? 'Clients inconnus' : 'Client $clientId');
+          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? (AppSettings().boutiqueModeEnabled ? 'Clients inconnus' : 'Contacts inconnus') : (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact') + ' $clientId');
 
           // Calculer le total : ne prendre que la dette la plus récente pour le couple (client,type)
           double totalRemaining = 0.0;
@@ -2178,13 +2305,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildClientsTab() {
-    final filtered = clients.where((c) {
+    final List<dynamic> filtered = clients.where((c) {
       if (_searchQuery.isEmpty) return true;
       final name = (c['name'] ?? '').toString().toLowerCase();
       return name.contains(_searchQuery.toLowerCase());
     }).toList();
 
-    filtered.sort((a, b) {
+    filtered.sort((dynamic a, dynamic b) {
       final ra = _clientTotalRemaining(a['id']);
       final rb = _clientTotalRemaining(b['id']);
       final sa = ra > 0 ? 0 : 1;
@@ -2691,7 +2818,7 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Icon(Icons.people, size: 20, color: _tabIndex == 1 ? textColor : textColorSecondary),
                           const SizedBox(height: 4),
-                          Text('CLIENTS', style: TextStyle(fontSize: 11, color: _tabIndex == 1 ? textColor : textColorSecondary)),
+                          Text(_getTermClientUp(), style: TextStyle(fontSize: 11, color: _tabIndex == 1 ? textColor : textColorSecondary)),
                         ],
                       ),
                     ),

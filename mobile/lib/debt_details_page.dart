@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'add_payment_page.dart';
 import 'add_addition_page.dart';
 import 'data/audio_service.dart';
+import 'app_settings.dart';
 import 'dart:async';
 
 class DebtDetailsPage extends StatefulWidget {
@@ -73,6 +74,15 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         _loadAllData(silent: true);
       }
     });
+  }
+
+  // 🆕 Fonction helper pour déterminer le terme "Client" ou "Contact"
+  String _getTermClient() {
+    return AppSettings().boutiqueModeEnabled ? 'client' : 'contact';
+  }
+
+  String _getTermClientUp() {
+    return AppSettings().boutiqueModeEnabled ? 'CLIENT' : 'CONTACT';
   }
 
   // ✅ Conversion sécurisée des nombres
@@ -305,7 +315,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
   Widget _buildClientAvatar() {
     final hasAvatar = _client?['avatar_url'] != null && 
                      _client!['avatar_url'].toString().isNotEmpty;
-    final clientName = _client?['name'] ?? _debt['client_name'] ?? 'Client';
+    final clientName = _client?['name'] ?? _debt['client_name'] ?? (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact');
     final initials = _getInitials(clientName);
     
     return Container(
@@ -937,7 +947,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     final dueDate = _parseDate(_debt['due_date']);
 
     // NOM DU CLIENT
-    final clientName = _client?['name'] ?? _debt['client_name'] ?? 'Client';
+    final clientName = _client?['name'] ?? _debt['client_name'] ?? (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact');
     
     // ✅ NOUVEAU : Déterminer le type
     final debtType = _debt['type'] ?? 'debt';
@@ -1039,7 +1049,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Client',
+                            _getTermClient(),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
