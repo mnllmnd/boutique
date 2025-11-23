@@ -417,7 +417,7 @@ class _DebtActionSheetState extends State<DebtActionSheet> {
                                     const SizedBox(height: 8),
                                     Text(
                                       _fmtAmount(totalPaid),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.green,
@@ -664,7 +664,7 @@ class _DebtActionSheetState extends State<DebtActionSheet> {
                                   children: [
                                     Text(
                                       _fmtAmount(p['amount']),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight:
                                             FontWeight.w600,
@@ -685,7 +685,7 @@ class _DebtActionSheetState extends State<DebtActionSheet> {
                                     ),
                                   ],
                                 ),
-                                Icon(
+                                const Icon(
                                   Icons.check_circle,
                                   color: Colors.green,
                                   size: 20,

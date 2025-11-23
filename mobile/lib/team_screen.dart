@@ -118,7 +118,7 @@ class _TeamScreenState extends State<TeamScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: role,
+                initialValue: role,
                 style: TextStyle(color: textColor, fontSize: 15),
                 dropdownColor: Theme.of(context).cardColor,
                 items: const [

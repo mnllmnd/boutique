@@ -20,7 +20,7 @@ class DebtDetailsPage extends StatefulWidget {
   _DebtDetailsPageState createState() => _DebtDetailsPageState();
 }
 
-class _DebtDetailsPageState extends State<DebtDetailsPage> {
+class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderStateMixin {
   List payments = [];
   List additions = [];
   bool _loading = false;
@@ -35,6 +35,9 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   // Pour le refresh automatique
   final int _autoRefreshInterval = 2000; // 2 secondes
   Timer? _refreshTimer;
+  
+  // ✅ NOUVEAU : TabBar Controller
+  late TabController _tabController;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -50,6 +53,8 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
     _audioService = AudioService();
     _debt = Map.from(widget.debt); // Copie locale
     _changed = false;
+    // ✅ NOUVEAU : Initialiser TabController
+    _tabController = TabController(length: 2, vsync: this);
     _loadAllData();
     _startAutoRefresh();
   }
@@ -57,6 +62,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _tabController.dispose(); // ✅ NOUVEAU : Disposer du TabController
     _audioService.dispose();
     super.dispose();
   }
@@ -237,7 +243,65 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
     }
   }
 
-  // ✅ FONCTION : Avatar du client
+  // ✅ LOGIQUE UNIVERSELLE : from_user doit payer to_user
+  // balance = montant que from_user doit à to_user
+  // Si balance > 0 : from_user doit payer
+  // Si balance < 0 : to_user doit payer (inverse)
+
+  bool _isLoan() {
+    // On affiche juste si c'est un emprunt initial
+    // Mais ça n'affecte PLUS la logique des boutons !
+    return _debt['type'] == 'loan';
+  }
+
+  String _getAddButtonLabel() {
+    // ✅ SPÉCIALISÉ : Dépend du type de relation
+    final debtType = _debt['type'] ?? 'debt';
+    if (debtType == 'debt') {
+      return 'Prêter Plus'; // Je prête → prêter plus
+    } else {
+      return 'Emprunter Plus'; // Je dois → emprunter plus
+    }
+  }
+
+  String _getPaymentButtonLabel() {
+    // ✅ SPÉCIALISÉ : Dépend du type de relation
+    final debtType = _debt['type'] ?? 'debt';
+    if (debtType == 'debt') {
+      return 'Encaisser'; // Je prête → encaisser le paiement
+    } else {
+      return 'Rembourser'; // Je dois → rembourser ma dette
+    }
+  }
+
+  // ✅ NOUVEAU: Retourne le statut initial du type
+  String _getInitialType() {
+    return _debt['type'] ?? 'debt';
+  }
+
+  // ✅ NOUVEAU: Message contextuel si le balance a changé de signe
+  String? _getStatusChangeMessage() {
+    final balance = _parseDouble(_debt['balance'] ?? 0.0);
+    final initialType = _getInitialType();
+    
+    // Prêt (X prête à Y) mais balance < 0 (Y prête à X maintenant)
+    if (initialType == 'debt' && balance < 0) {
+      final fromUser = _debt['from_user'];
+      final toUser = _debt['to_user'];
+      final amount = balance.abs();
+      return '⚠️ RELATION INVERSÉE : $toUser prête maintenant $amount F à $fromUser';
+    }
+    
+    // Emprunt (X emprunte de Y) mais balance > 0 (Y prête à X maintenant)
+    if (initialType == 'loan' && balance > 0) {
+      final fromUser = _debt['from_user'];
+      final toUser = _debt['to_user'];
+      final amount = balance;
+      return '⚠️ RELATION INVERSÉE : $toUser prête maintenant $amount F à $fromUser';
+    }
+    
+    return null;
+  }
   Widget _buildClientAvatar() {
     final hasAvatar = _client?['avatar_url'] != null && 
                      _client!['avatar_url'].toString().isNotEmpty;
@@ -351,7 +415,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                     ),
-                    child: Text(
+                    child: const Text(
                       'SUPPRIMER',
                       style: TextStyle(
                         fontSize: 11,
@@ -709,7 +773,9 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
             Row(
               children: [
                 Text(
-                  isPayment ? 'Paiement reçu' : 'Montant ajouté',
+                  isPayment 
+                    ? (_isLoan() ? 'Remboursement effectué' : 'Paiement reçu')
+                    : (_isLoan() ? 'Montant emprunté' : 'Montant prêté'),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -844,6 +910,10 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
 
     // NOM DU CLIENT
     final clientName = _client?['name'] ?? _debt['client_name'] ?? 'Client';
+    
+    // ✅ NOUVEAU : Déterminer le type
+    final debtType = _debt['type'] ?? 'debt';
+    final isPret = debtType == 'debt';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -855,7 +925,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
           onPressed: () => Navigator.of(context).pop(_changed),
         ),
         title: Text(
-          'DÉTAILS DETTE',
+          isPret ? 'MES PRÊTS' : 'MES EMPRUNTS',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -864,388 +934,489 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: _addAddition,
-            icon: Icon(Icons.add, color: Colors.orange, size: 20),
-            tooltip: 'Ajouter montant',
-          ),
-          IconButton(
-            onPressed: _addPayment,
-            icon: Icon(Icons.payment, color: textColor, size: 20),
-            tooltip: 'Ajouter paiement',
-          ),
-        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: isPret ? 'PRÊT' : 'EMPRUNT'),
+            Tab(text: 'DÉTAILS'),
+          ],
+          labelColor: isPret ? Colors.orange : Colors.purple,
+          unselectedLabelColor: textColorSecondary,
+          indicatorColor: isPret ? Colors.orange : Colors.purple,
+          indicatorWeight: 2,
+        ),
       ),
       body: SafeArea(
-        child: Column(
+        child: TabBarView(
+          controller: _tabController,
           children: [
-            // Header avec avatar et infos client
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Ligne avec avatar et nom du client
-                  Row(
-                    children: [
-                      // Avatar du client
-                      _buildClientAvatar(),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              clientName.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+            // ✅ TAB 1 : PRÊT / EMPRUNT (Actions rapides + Solde)
+            _buildMainTab(context, remaining, amount, totalPaid, progress, dueDate, clientName, isPret, textColor, textColorSecondary, borderColor),
+            
+            // ✅ TAB 2 : DÉTAILS (Notes + Historique)
+            _buildDetailsTab(context, textColor, textColorSecondary, borderColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainTab(
+    BuildContext context,
+    double remaining,
+    double amount,
+    double totalPaid,
+    double progress,
+    DateTime? dueDate,
+    String clientName,
+    bool isPret,
+    Color textColor,
+    Color textColorSecondary,
+    Color borderColor,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header avec avatar et infos client
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ligne avec avatar et nom du client
+                Row(
+                  children: [
+                    // Avatar du client
+                    _buildClientAvatar(),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            clientName.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Client',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: textColorSecondary,
-                              ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Client',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: textColorSecondary,
                             ),
-                          ],
-                        ),
-                      ),
-                      if (dueDate != null) _buildDueDateWidget(dueDate),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Montant principal
-                  Center(
-                    child: Text(
-                      _fmtAmount(amount),
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
-                        color: textColor,
-                        height: 1,
+                          ),
+                        ],
                       ),
                     ),
+                    if (dueDate != null) _buildDueDateWidget(dueDate),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Montant principal
+                Center(
+                  child: Text(
+                    _fmtAmount(amount),
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w300,
+                      color: textColor,
+                      height: 1,
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  
-                  // ✅ SECTION CORRIGÉE : Progression avec "JE DOIS"
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PAYÉ',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1,
-                                color: textColorSecondary,
-                              ),
+                ),
+                const SizedBox(height: 20),
+                
+                // ✅ SECTION CORRIGÉE : Progression avec "JE DOIS"
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isPret ? 'ENCAISSÉ' : 'REMBOURSÉ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                              color: textColorSecondary,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _fmtAmount(totalPaid),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _fmtAmount(totalPaid),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            remaining < 0 ? 'JE DOIS' : (isPret ? 'RESTE' : 'RESTE'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                              color: textColorSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            remaining < 0 
+                                ? '${_fmtAmount(remaining.abs())} au client'
+                                : _fmtAmount(remaining),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: remaining < 0 ? Colors.purple : (remaining <= 0 ? Colors.green : Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Theme.of(context).dividerColor.withOpacity(0.3),
+                  color: remaining <= 0 ? Colors.green : Theme.of(context).colorScheme.primary,
+                  minHeight: 6,
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+
+          // ✅ Actions rapides - SPÉCIALISÉES
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: remaining <= 0 ? null : _addPayment,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: remaining <= 0 ? Colors.grey : (isPret ? Colors.orange : Colors.purple),
+                    side: BorderSide(
+                      color: (remaining <= 0 ? Colors.grey : (isPret ? Colors.orange : Colors.purple)).withOpacity(0.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: Icon(
+                    isPret ? Icons.account_balance_wallet : Icons.payment,
+                    size: 18,
+                    color: remaining <= 0 ? Colors.grey : (isPret ? Colors.orange : Colors.purple),
+                  ),
+                  label: Text(
+                    _getPaymentButtonLabel().toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: remaining <= 0 ? Colors.grey : (isPret ? Colors.orange : Colors.purple),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _addAddition,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.green,
+                    side: BorderSide(
+                      color: Colors.green.withOpacity(0.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                    size: 18,
+                    color: Colors.green,
+                  ),
+                  label: Text(
+                    _getAddButtonLabel().toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          // ✅ NOUVEAU : Message si remboursement complet
+          if (remaining <= 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Remboursement complet ✓',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green,
                         ),
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              // ✅ "JE DOIS" au lieu de "RESTE" quand c'est négatif
-                              remaining < 0 ? 'JE DOIS' : 'RESTE',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1,
-                                color: textColorSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              // ✅ AFFICHAGE CLAIR SANS SIGNES NÉGATIFS
-                              remaining < 0 
-                                  ? '${_fmtAmount(remaining.abs())} au client'
-                                  : _fmtAmount(remaining),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                // ✅ COULEURS DIFFÉRENTES : Bleu pour "je dois", Vert pour soldé, Rouge pour reste à payer
-                                color: remaining < 0 ? const Color.fromARGB(231, 141, 47, 219) : (remaining <= 0 ? Colors.green : Colors.red),
-                              ),
-                            ),
-                          ],
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsTab(BuildContext context, Color textColor, Color textColorSecondary, Color borderColor) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ MESSAGE D'ALERTE si la relation s'est inversée
+          if (_getStatusChangeMessage() != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.12),
+                border: Border.all(color: Colors.blue.withOpacity(0.6), width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _getStatusChangeMessage()!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[700],
+                        height: 1.5,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: Theme.of(context).dividerColor.withOpacity(0.3),
-                    color: remaining <= 0 ? Colors.green : Theme.of(context).colorScheme.primary,
-                    minHeight: 6,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Contenu scrollable
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Actions rapides
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _addPayment,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: textColor,
-                              side: BorderSide(color: borderColor),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            icon: Icon(Icons.payment, size: 18),
-                            label: Text(
-                              'PAIEMENT',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _addAddition,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.orange,
-                              side: BorderSide(color: Colors.orange.withOpacity(0.5)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            icon: Icon(Icons.add, size: 18),
-                            label: Text(
-                              'Ajouter un prêt',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Notes (si existantes)
-                    if (_debt['notes'] != null && _debt['notes'] != '') ...[
-                      _buildSectionHeader('NOTES'),
-                      const SizedBox(height: 12),
-                      // ✅ RENDU CLIQUABLE pour modifier
-                      GestureDetector(
-                        onTap: _editNotes,
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: borderColor, width: 0.5),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _debt['notes'],
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w400,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Icon(Icons.edit, size: 16, color: textColorSecondary.withOpacity(0.6)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // ✅ NOUVELLE SECTION : Ajouter une note si elle n'existe pas
-                    if (_debt['notes'] == null || _debt['notes'] == '') ...[
-                      GestureDetector(
-                        onTap: _editNotes,
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: borderColor, width: 0.5),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                Icon(Icons.note_add_outlined, size: 18, color: textColorSecondary),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Ajouter une note',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    color: textColorSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Audio (si existant)
-                    if (_debt['audio_path'] != null && _debt['audio_path'] != '') ...[
-                      _buildSectionHeader('ENREGISTREMENT'),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: borderColor, width: 0.5),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(Icons.audio_file, color: textColorSecondary, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Enregistrement audio',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: textColor,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => _audioService.playAudio(_debt['audio_path']),
-                              icon: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Historique unifié (paiements + montants ajoutés)
-                    _buildSectionHeader(
-                      'HISTORIQUE',
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_getMergedHistory().length}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: textColorSecondary,
-                            ),
-                          ),
-                          if (_getMergedHistory().length > 5) ...[
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _showAllHistory = !_showAllHistory;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: borderColor),
-                                ),
-                                child: Text(
-                                  _showAllHistory ? 'VOIR MOINS' : 'VOIR PLUS',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    if (_loading)
-                      Center(child: CircularProgressIndicator())
-                    else
-                      ..._buildUnifiedHistory(textColor, textColorSecondary),
-
-                    const SizedBox(height: 20),
-                    
-                    // Bouton suppression
-                    Center(
-                      child: TextButton(
-                        onPressed: _deleteDebt,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
+          // Notes (si existantes)
+          if (_debt['notes'] != null && _debt['notes'] != '') ...[
+            _buildSectionHeader('NOTES'),
+            const SizedBox(height: 12),
+            // ✅ RENDU CLIQUABLE pour modifier
+            GestureDetector(
+              onTap: _editNotes,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor, width: 0.5),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
                         child: Text(
-                          'SUPPRIMER LA DETTE',
+                          _debt['notes'],
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: textColor,
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(width: 8),
+                      Icon(Icons.edit, size: 16, color: textColorSecondary.withOpacity(0.6)),
+                    ],
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 24),
           ],
-        ),
+
+          // ✅ NOUVELLE SECTION : Ajouter une note si elle n'existe pas
+          if (_debt['notes'] == null || _debt['notes'] == '') ...[
+            GestureDetector(
+              onTap: _editNotes,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor, width: 0.5),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.note_add_outlined, size: 18, color: textColorSecondary),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Ajouter une note',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: textColorSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Audio (si existant)
+          if (_debt['audio_path'] != null && _debt['audio_path'] != '') ...[
+            _buildSectionHeader('ENREGISTREMENT'),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: borderColor, width: 0.5),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.audio_file, color: textColorSecondary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Enregistrement audio',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _audioService.playAudio(_debt['audio_path']),
+                    icon: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.primary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Historique unifié (paiements + montants ajoutés)
+          _buildSectionHeader(
+            'HISTORIQUE',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_getMergedHistory().length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: textColorSecondary,
+                  ),
+                ),
+                if (_getMergedHistory().length > 5) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showAllHistory = !_showAllHistory;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Text(
+                        _showAllHistory ? 'VOIR MOINS' : 'VOIR PLUS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else
+            ..._buildUnifiedHistory(textColor, textColorSecondary),
+
+          const SizedBox(height: 20),
+          
+          // Bouton suppression
+          Center(
+            child: TextButton(
+              onPressed: _deleteDebt,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text(
+                'SUPPRIMER LA DETTE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }

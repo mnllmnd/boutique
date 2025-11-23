@@ -229,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       ),
                       icon: const Icon(Icons.bar_chart_outlined, size: 20),
-                      label: Text(
+                      label: const Text(
                         'VOIR LES STATISTIQUES',
                         style: TextStyle(
                           fontSize: 12,
@@ -428,7 +428,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 );
                               }
                             },
-                            activeColor: Colors.orange,
+                            activeThumbColor: Colors.orange,
                             inactiveThumbColor: textColorSecondary,
                           ),
                         ],
@@ -477,7 +477,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 side: BorderSide(color: Colors.orange.withOpacity(0.3), width: 0.5),
                               ),
                             ),
-                            child: Text(
+                            child: const Text(
                               'ENREGISTRER LE NOM',
                               style: TextStyle(
                                 fontSize: 11,
@@ -541,7 +541,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Switch(
                             value: _settings.lightMode,
                             onChanged: (v) => _settings.setLightMode(v),
-                            activeColor: isDark ? Colors.white : Colors.black,
+                            activeThumbColor: isDark ? Colors.white : Colors.black,
                           ),
                         ],
                       ),

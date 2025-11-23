@@ -1,4 +1,5 @@
 import 'package:boutique_mobile/add_payment_page.dart';
+import 'package:boutique_mobile/add_loan_page.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -44,7 +45,7 @@ String fmtFCFA(dynamic v) {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -277,15 +278,15 @@ class _HomePageState extends State<HomePage> {
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop('payment'),
-            child: Row(children: [Icon(Icons.monetization_on_outlined, color: Colors.green), const SizedBox(width: 12), Text('Ajouter paiement', style: TextStyle(color: textColor))]),
+            child: Row(children: [const Icon(Icons.monetization_on_outlined, color: Colors.green), const SizedBox(width: 12), Text('Ajouter paiement', style: TextStyle(color: textColor))]),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop('addition'),
-            child: Row(children: [Icon(Icons.add, color: Colors.orange), const SizedBox(width: 12), Text('Ajouter un prêt', style: TextStyle(color: textColor))]),
+            child: Row(children: [const Icon(Icons.add, color: Colors.orange), const SizedBox(width: 12), Text('Ajouter un prêt', style: TextStyle(color: textColor))]),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop('delete'),
-            child: Row(children: [Icon(Icons.delete, color: Colors.red), const SizedBox(width: 12), Text('Supprimer client', style: TextStyle(color: textColor))]),
+            child: Row(children: [const Icon(Icons.delete, color: Colors.red), const SizedBox(width: 12), Text('Supprimer client', style: TextStyle(color: textColor))]),
           ),
         ],
       ),
@@ -415,7 +416,7 @@ class _HomePageState extends State<HomePage> {
                         setState(() {});
                       }
                     },
-                    child: Text(
+                    child: const Text(
                       'CHOISIR',
                       style: TextStyle(
                         fontSize: 11,
@@ -447,7 +448,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(dlg).pop(false),
-                    child: Text(
+                    child: const Text(
                       'ANNULER',
                       style: TextStyle(
                         fontSize: 11,
@@ -465,7 +466,7 @@ class _HomePageState extends State<HomePage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                     ),
-                    child: Text(
+                    child: const Text(
                       'AJOUTER',
                       style: TextStyle(
                         fontSize: 11,
@@ -512,11 +513,14 @@ class _HomePageState extends State<HomePage> {
             body: json.encode(additionBody),
           ).timeout(const Duration(seconds: 8));
           
-          if (res.statusCode == 200 || res.statusCode == 201) {
+              if (res.statusCode == 200 || res.statusCode == 201) {
             await fetchDebts();
             if (mounted) {
               setState(() {
-                if (c != null && c['id'] != null) _expandedClients.add(c['id']);
+                if (c != null && c['id'] != null) {
+                  final comp = '${c['id'].toString()}|${(existingDebt?['type'] ?? 'debt').toString()}';
+                  _expandedClients.add(comp);
+                }
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Montant ajouté à la dette existante')),
@@ -556,7 +560,10 @@ class _HomePageState extends State<HomePage> {
             await fetchDebts();
             if (mounted) {
               setState(() {
-                if (c != null && c['id'] != null) _expandedClients.add(c['id']);
+                if (c != null && c['id'] != null) {
+                  final comp = '${c['id'].toString()}|debt';
+                  _expandedClients.add(comp);
+                }
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Dette ajoutée')),
@@ -688,6 +695,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ✅ CORRIGÉ : fetchDebts avec consolidation par client
   Future fetchDebts({String? query}) async {
     try {
       final headers = {
@@ -695,62 +703,63 @@ class _HomePageState extends State<HomePage> {
         if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone
       };
       final res = await http.get(
-        Uri.parse('$apiHost/debts'),
+        // demander les soldes consolidés côté serveur pour réduire les appels
+        Uri.parse('$apiHost/debts?consolidated=1'),
         headers: headers,
       ).timeout(const Duration(seconds: 8));
-      
+
       if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List;
-        
-        // ✅ FUSIONNER LES DETTES PAR CLIENT
-        final Map<dynamic, List> debtsByClient = {};
-        for (final d in list) {
-          if (d == null) continue;
-          final clientId = d['client_id'];
-          if (clientId == null) continue;
-          if (!debtsByClient.containsKey(clientId)) {
-            debtsByClient[clientId] = [];
+        final raw = json.decode(res.body);
+        final list = raw is List ? raw : (raw is Map ? [raw] : []);
+
+        // Normaliser la réponse consolidée (backend renvoie client_id, type, remaining, total_debt, debt_ids, last_debt_id...)
+        final List<Map<String, dynamic>> normalized = [];
+        for (final item in list) {
+          if (item == null) continue;
+          // Si c'est un objet agrégé (consolidated) on s'adapte
+          if (item is Map && item.containsKey('client_id') && item.containsKey('type')) {
+            final clientId = item['client_id'];
+            final type = (item['type'] ?? 'debt').toString();
+            final remaining = (item['remaining'] as num?)?.toDouble() ?? ((item['remaining'] is String) ? double.tryParse(item['remaining'].toString()) ?? 0.0 : 0.0);
+            final amount = (item['total_debt'] as num?)?.toDouble() ?? (item['total_base_amount'] as num?)?.toDouble() ?? 0.0;
+            final lastId = item['last_debt_id'] ?? (item['debt_ids'] is List && item['debt_ids'].isNotEmpty ? item['debt_ids'][0] : null);
+
+            normalized.add({
+              'id': lastId,
+              'client_id': clientId,
+              'type': type,
+              'amount': amount,
+              'remaining': remaining,
+              'total_additions': item['total_additions'],
+              'total_paid': item['total_payments'] ?? item['total_payments'],
+              'debt_ids': item['debt_ids'],
+              '_ts': (lastId is int) ? lastId.toDouble() : (lastId is String ? double.tryParse(lastId) ?? 0.0 : 0.0),
+            });
+          } else if (item is Map) {
+            // ancien format : chaque ligne est une dette
+            final id = item['id'];
+            normalized.add({
+              ...item,
+              'id': id,
+              'client_id': item['client_id'],
+              'type': item['type'] ?? 'debt',
+              'amount': item['amount'],
+              'remaining': (item['remaining'] as num?)?.toDouble() ?? 0.0,
+              '_ts': _tsForDebt(item),
+            });
           }
-          debtsByClient[clientId]!.add(d);
         }
-        
-        // Créer une dette consolidée par client
-        final List mergedDebts = [];
-        for (final entry in debtsByClient.entries) {
-          final debtsForClient = entry.value;
-          
-          if (debtsForClient.isEmpty) continue;
-          
-          // Prendre la première dette comme base
-          final baseDept = Map.from(debtsForClient.first);
-          
-          // Sommer tous les montants
-          double totalAmount = 0.0;
-          double totalPaid = 0.0;
-          for (final d in debtsForClient) {
-            final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-            totalAmount += amt;
-            final paid = double.tryParse(d['total_paid']?.toString() ?? '0') ?? 0.0;
-            totalPaid += paid;
-          }
-          
-          // Mettre à jour la dette consolidée
-          baseDept['amount'] = totalAmount;
-          baseDept['total_paid'] = totalPaid;
-          baseDept['remaining'] = totalAmount - totalPaid;
-          baseDept['_original_debts'] = debtsForClient; // Garder l'historique
-          
-          mergedDebts.add(baseDept);
-        }
-        
+
+        // Filtrer par recherche si nécessaire
+        var consolidatedDebts = normalized;
         if (query != null && query.isNotEmpty) {
-          setState(() => debts = mergedDebts.where((d) {
+          consolidatedDebts = consolidatedDebts.where((d) {
             final clientName = _clientNameForDebt(d)?.toLowerCase() ?? '';
             return clientName.contains(query.toLowerCase());
-          }).toList());
-        } else {
-          setState(() => debts = mergedDebts);
+          }).toList();
         }
+
+        setState(() => debts = consolidatedDebts);
       }
     } on TimeoutException {
       print('Timeout fetching debts');
@@ -767,21 +776,131 @@ class _HomePageState extends State<HomePage> {
     return c != null ? c['name'] : null;
   }
 
+  // Retourne un score temporel pour une dette (ms depuis epoch) pour choisir la plus récente
+  double _tsForDebt(dynamic debt) {
+    if (debt == null) return 0.0;
+    final List<String> tsFields = ['updated_at', 'added_at', 'created_at', 'createdAt', 'date'];
+    for (final f in tsFields) {
+      final v = debt[f];
+      if (v == null) continue;
+      if (v is String) {
+        final dt = DateTime.tryParse(v);
+        if (dt != null) return dt.millisecondsSinceEpoch.toDouble();
+      } else if (v is int) {
+        return v.toDouble();
+      } else if (v is double) {
+        return v;
+      }
+    }
+
+    final idv = debt['id'];
+    if (idv is int) return idv.toDouble();
+    if (idv is String) return double.tryParse(idv) ?? 0.0;
+    return 0.0;
+  }
+
+  // Parse double safely (copié/consistent with DebtDetailsPage)
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value.replaceAll(' ', '')) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  // Calculer remaining exactement comme dans DebtDetailsPage: amount - sum(payments)
+  double _calculateRemainingFromPayments(Map debt, List paymentList) {
+    try {
+      final debtAmount = _parseDouble(debt['amount']);
+      double totalPaid = 0.0;
+      for (final payment in paymentList) {
+        totalPaid += _parseDouble(payment['amount']);
+      }
+      return debtAmount - totalPaid;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
+  // ✅ CORRIGÉ : Calcul du total par client
   double _clientTotalRemaining(dynamic clientId) {
+    // Ne pas additionner plusieurs enregistrements potentiellement dupliqués.
+    // Prendre la dette la plus récente pour ce client.
+    final clientDebts = debts.where((d) => d != null && d['client_id'] == clientId).toList();
+    if (clientDebts.isEmpty) return 0.0;
+    dynamic latest = clientDebts.reduce((a, b) => _tsForDebt(b) >= _tsForDebt(a) ? b : a);
+    return ((latest['remaining'] as num?)?.toDouble() ?? 0.0);
+  }
+
+  // ✅ CORRIGÉ : Calcul du total général
+  // ✅ NOUVEAU : Calcul du solde net basé sur balance (universel)
+  double _calculateNetBalance() {
+    double totalToCollect = 0.0;   
+    double totalToPay = 0.0;     
+    
+    for (final d in debts) {
+      if (d == null) continue;
+      
+      // Récupérer balance ou remaining, en gérant les types (String ou double)
+      double balance = 0.0;
+      final balanceValue = d['balance'] ?? d['remaining'];
+      
+      if (balanceValue is String) {
+        balance = double.tryParse(balanceValue.toString().replaceAll(' ', '')) ?? 0.0;
+      } else if (balanceValue is double) {
+        balance = balanceValue;
+      } else if (balanceValue is int) {
+        balance = balanceValue.toDouble();
+      }
+      
+      // Déterminer le type initial
+      final type = d['type'] ?? 'debt';
+      
+      // Pour les PRÊTS (type='debt'): balance positive = à percevoir
+      if (type == 'debt') {
+        if (balance > 0) {
+          totalToCollect += balance;
+        } else if (balance < 0) {
+          totalToPay += balance.abs();
+        }
+      } 
+      // Pour les EMPRUNTS (type='loan'): balance positive = on doit payer
+      else if (type == 'loan') {
+        if (balance > 0) {
+          totalToPay += balance;
+        } else if (balance < 0) {
+          totalToCollect += balance.abs();
+        }
+      }
+    }
+    
+    return totalToCollect - totalToPay;  // Positif = à recevoir, Négatif = à payer
+  }
+
+  // ✅ NOUVEAU : Calculer le total des PRÊTS
+  double _calculateTotalPrets() {
     double total = 0.0;
     for (final d in debts) {
       if (d == null) continue;
-      if (d['client_id'] != clientId) continue;
-      final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-      double rem = amt;
-      try {
-        if (d != null && d['remaining'] != null) {
-          rem = double.tryParse(d['remaining'].toString()) ?? rem;
-        } else if (d != null && d['total_paid'] != null) {
-          rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-        }
-      } catch (_) {}
-      total += rem;
+      if ((d['type'] ?? 'debt') != 'debt') continue; // Seulement les prêts
+      
+      final remaining = (d['remaining'] as double?) ?? 0.0;
+      if (remaining > 0) total += remaining;
+    }
+    return total;
+  }
+
+  // ✅ NOUVEAU : Calculer le total des EMPRUNTS
+  double _calculateTotalEmprunts() {
+    double total = 0.0;
+    for (final d in debts) {
+      if (d == null) continue;
+      if ((d['type'] ?? 'debt') != 'loan') continue; // Seulement les emprunts
+      
+      final remaining = (d['remaining'] as double?) ?? 0.0;
+      if (remaining > 0) total += remaining;
     }
     return total;
   }
@@ -857,7 +976,7 @@ class _HomePageState extends State<HomePage> {
     return null;
   }
 
-  Future createDebt() async {
+  Future _showAddChoice() async {
     if (clients.isEmpty) {
       final add = await showDialog<bool>(
         context: context,
@@ -880,12 +999,135 @@ class _HomePageState extends State<HomePage> {
         final newId = await createClient();
         if (newId != null) {
           await fetchClients();
-          await createDebt();
+          await _showAddChoice();
         }
       }
       return;
     }
-    
+
+    // Show bottom sheet with PRÊTER and EMPRUNTER options
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'AJOUTER UNE TRANSACTION',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.2,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () => Navigator.of(ctx).pop('preter'),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.green.withOpacity(0.3),
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.arrow_upward, size: 24, color: Colors.green),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PRÊTER',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Je donne l\'argent au client',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => Navigator.of(ctx).pop('emprunter'),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.blue.withOpacity(0.3),
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.arrow_downward, size: 24, color: Colors.blue),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'EMPRUNTER',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Je reçois l\'argent du client',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == 'preter') {
+      await createDebt();
+    } else if (choice == 'emprunter') {
+      await createLoan();
+    }
+  }
+
+  Future createDebt() async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AddDebtPage(
@@ -899,7 +1141,25 @@ class _HomePageState extends State<HomePage> {
     if (result == true) {
       await fetchDebts();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dette ajoutée')),
+        const SnackBar(content: Text('Prêt ajouté')),
+      );
+    }
+  }
+
+  Future createLoan() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AddLoanPage(
+          ownerPhone: widget.ownerPhone,
+          clients: clients,
+        ),
+      ),
+    );
+    
+    if (result == true) {
+      await fetchDebts();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Emprunt ajouté')),
       );
     }
   }
@@ -912,30 +1172,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDebtsTab() {
+    // ✅ NOUVEAU : Calculer les PRÊTS et EMPRUNTS séparément
+    final totalPrets = _calculateTotalPrets();
+    final totalEmprunts = _calculateTotalEmprunts();
+    
+    // Ancien calcul pour compatibilité
+    final netBalance = _calculateNetBalance();
+    int totalUnpaid = debts.where((d) {
+      final remaining = (d['remaining'] as double?) ?? 0.0;
+      return remaining > 0;
+    }).length;
+
     // Filtrer les dettes par plage de montant si applicable
     List filteredDebts = debts;
     if (_minDebtAmount > 0 || _maxDebtAmount > 0) {
       filteredDebts = debts.where((d) {
-        final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-        double rem = amt;
-        try {
-          if (d != null && d['remaining'] != null) {
-            rem = double.tryParse(d['remaining'].toString()) ?? rem;
-          } else if (d != null && d['total_paid'] != null) {
-            rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-          }
-        } catch (_) {}
+        final remaining = (d['remaining'] as double?) ?? 0.0;
         
         bool inRange = true;
-        if (_minDebtAmount > 0 && rem < _minDebtAmount) inRange = false;
-        if (_maxDebtAmount > 0 && rem > _maxDebtAmount) inRange = false;
+        if (_minDebtAmount > 0 && remaining < _minDebtAmount) inRange = false;
+        if (_maxDebtAmount > 0 && remaining > _maxDebtAmount) inRange = false;
         return inRange;
       }).toList();
     }
 
-    final Map<dynamic, List> grouped = {};
+    // Grouper par client ET type (debt/loan) pour afficher séparément prêts et emprunts
+    final Map<String, List> grouped = {};
     for (final d in filteredDebts) {
-      final key = d != null && d['client_id'] != null ? d['client_id'] : 'unknown';
+      final cidPart = d != null && d['client_id'] != null ? d['client_id'].toString() : 'unknown';
+      final typePart = d != null && d['type'] != null ? d['type'].toString() : 'debt';
+      final key = '$cidPart|$typePart';
       if (!grouped.containsKey(key)) grouped[key] = [];
       grouped[key]!.add(d);
     }
@@ -945,16 +1211,8 @@ class _HomePageState extends State<HomePage> {
       double sumRem(List list) {
         double tot = 0.0;
         for (final d in list) {
-          final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-          double rem = amt;
-          try {
-            if (d != null && d['remaining'] != null) {
-              rem = double.tryParse(d['remaining'].toString()) ?? rem;
-            } else if (d != null && d['total_paid'] != null) {
-              rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-            }
-          } catch (_) {}
-          tot += rem;
+          final remaining = (d['remaining'] as double?) ?? 0.0;
+          tot += remaining;
         }
         return tot;
       }
@@ -966,22 +1224,6 @@ class _HomePageState extends State<HomePage> {
       if (sa != sb) return sa - sb;
       return 0;
     });
-
-    double totalToCollect = 0.0;
-    int totalUnpaid = 0;
-    for (final d in filteredDebts) {
-      final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-      double rem = amt;
-      try {
-        if (d != null && d['remaining'] != null) {
-          rem = double.tryParse(d['remaining'].toString()) ?? rem;
-        } else if (d != null && d['total_paid'] != null) {
-          rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-        }
-      } catch (_) {}
-      totalToCollect += rem;
-      if (rem > 0) totalUnpaid++;
-    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
@@ -1010,11 +1252,11 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Show "TOTAL À PAYER" when overall total is negative (owner must pay)
+                        // Show "À PERCEVOIR" or "À REMBOURSER" based on net balance
                         Builder(builder: (_) {
-                          final bool ownerOwe = totalToCollect < 0;
+                          final bool oweMoney = netBalance < 0;
                           return Text(
-                            ownerOwe ? 'TOTAL À PAYER' : 'TOTAL À PERCEVOIR',
+                            oweMoney ? 'À REMBOURSER' : 'À PERCEVOIR',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1038,11 +1280,11 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(width: 8),
                             _showTotalCard
                                 ? Builder(builder: (_) {
-                                    final bool ownerOwe = totalToCollect < 0;
-                                    final display = ownerOwe
-                                        ? AppSettings().formatCurrency(totalToCollect.abs())
-                                        : AppSettings().formatCurrency(totalToCollect);
-                                    final Color amtColor = ownerOwe
+                                    final bool oweMoney = netBalance < 0;
+                                    final display = oweMoney
+                                        ? AppSettings().formatCurrency(netBalance.abs())
+                                        : AppSettings().formatCurrency(netBalance);
+                                    final Color amtColor = oweMoney
                                         ? const Color.fromARGB(231, 141, 47, 219)
                                         : textColor;
 
@@ -1063,6 +1305,131 @@ class _HomePageState extends State<HomePage> {
                                       color: textColorSecondary,
                                     ),
                                   ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // ✅ NOUVEAU : Affichage des PRÊTS et EMPRUNTS séparés
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.orange.withOpacity(0.08),
+                                      Colors.orange.withOpacity(0.03),
+                                    ],
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.2),
+                                    width: 0.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.trending_up, size: 14, color: Colors.orange),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'PRÊTS',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.orange,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _showTotalCard
+                                        ? Text(
+                                            AppSettings().formatCurrency(totalPrets),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.orange,
+                                            ),
+                                          )
+                                        : Text(
+                                            '•••••',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                              color: textColorSecondary,
+                                            ),
+                                          ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.purple.withOpacity(0.08),
+                                      Colors.purple.withOpacity(0.03),
+                                    ],
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.purple.withOpacity(0.2),
+                                    width: 0.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.trending_down, size: 14, color: Colors.purple),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'EMPRUNTS',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.purple,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _showTotalCard
+                                        ? Text(
+                                            AppSettings().formatCurrency(totalEmprunts),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.purple,
+                                            ),
+                                          )
+                                        : Text(
+                                            '•••••',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w400,
+                                              color: textColorSecondary,
+                                            ),
+                                          ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -1269,18 +1636,10 @@ class _HomePageState extends State<HomePage> {
                 // Calculer les clients avec le plus de dettes impayées
                 final Map<dynamic, double> clientDebtsMap = {};
                 for (final d in filteredDebts) {
-                  final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-                  double rem = amt;
-                  try {
-                    if (d != null && d['remaining'] != null) {
-                      rem = double.tryParse(d['remaining'].toString()) ?? rem;
-                    } else if (d != null && d['total_paid'] != null) {
-                      rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-                    }
-                  } catch (_) {}
-                  if (rem > 0) {
+                  final remaining = (d['remaining'] as double?) ?? 0.0;
+                  if (remaining > 0) {
                     final cid = d['client_id'] ?? 'unknown';
-                    clientDebtsMap[cid] = (clientDebtsMap[cid] ?? 0.0) + rem;
+                    clientDebtsMap[cid] = (clientDebtsMap[cid] ?? 0.0) + remaining;
                   }
                 }
 
@@ -1297,7 +1656,7 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
                         children: [
-                          Icon(Icons.trending_down, size: 14, color: Colors.red),
+                          const Icon(Icons.trending_down, size: 14, color: Colors.red),
                           const SizedBox(width: 8),
                           Text(
                             'CLIENTS À RISQUE',
@@ -1382,27 +1741,23 @@ class _HomePageState extends State<HomePage> {
           }
 
           final entry = groups[gi - 1];
-          final cid = entry.key;
+          final compositeKey = entry.key.toString();
           final clientDebts = entry.value;
-          final client = clients.firstWhere((x) => x['id'] == cid, orElse: () => null);
-          final clientName = client != null ? client['name'] : (cid == 'unknown' ? 'Clients inconnus' : 'Client $cid');
-          
+          final parts = compositeKey.split('|');
+          final clientIdPart = parts.isNotEmpty ? parts[0] : 'unknown';
+          final txType = parts.length > 1 ? parts[1] : 'debt';
+          final dynamic clientId = clientIdPart == 'unknown' ? 'unknown' : (int.tryParse(clientIdPart) ?? clientIdPart);
+          final client = clients.firstWhere((x) => x['id'] == clientId, orElse: () => null);
+          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? 'Clients inconnus' : 'Client $clientId');
 
+          // Calculer le total : ne prendre que la dette la plus récente pour le couple (client,type)
           double totalRemaining = 0.0;
-          for (final d in clientDebts) {
-            final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-            double rem = amt;
-            try {
-              if (d != null && d['remaining'] != null) {
-                rem = double.tryParse(d['remaining'].toString()) ?? rem;
-              } else if (d != null && d['total_paid'] != null) {
-                rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-              }
-            } catch (_) {}
-            totalRemaining += rem;
+          if (clientDebts.isNotEmpty) {
+            final latest = clientDebts.reduce((a, b) => _tsForDebt(b) >= _tsForDebt(a) ? b : a);
+            totalRemaining = ((latest['remaining'] as num?)?.toDouble() ?? 0.0);
           }
 
-          final bool isOpen = _expandedClients.contains(cid);
+          final bool isOpen = _expandedClients.contains(compositeKey);
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
@@ -1418,7 +1773,7 @@ class _HomePageState extends State<HomePage> {
                       showDebtDetails(clientDebts.first);
                     }
                   },
-                  onLongPress: () => _showClientActions(client, cid),
+                  onLongPress: () => _showClientActions(client, clientId),
                   borderRadius: BorderRadius.zero,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
@@ -1458,10 +1813,13 @@ class _HomePageState extends State<HomePage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
+                            // ✅ MODIFIÉ : Distinction emprunts/dettes
                             Builder(builder: (_) {
                               final bool clientOwe = totalRemaining < 0;
+                              final bool isLoan = txType == 'loan'; // Vérifier le type par composant
+                              
                               return Text(
-                                clientOwe ? 'JE DOIS' : 'À percevoir',
+                                isLoan ? 'JE DOIS' : (clientOwe ? 'JE DOIS' : 'À PERCEVOIR'),
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: textColorSecondary,
@@ -1470,14 +1828,16 @@ class _HomePageState extends State<HomePage> {
                               );
                             }),
                             const SizedBox(height: 2),
+                            // ✅ MODIFIÉ : Affichage montant pour emprunts
                             Builder(
                               builder: (_) {
                                 final bool clientOwe = totalRemaining < 0;
-                                final display = clientOwe
+                                final bool isLoan = clientDebts.isNotEmpty && clientDebts.first['type'] == 'loan'; // ✅ Vérifier le type
+                                final display = isLoan || clientOwe
                                     ? AppSettings().formatCurrency(totalRemaining.abs())
                                     : AppSettings().formatCurrency(totalRemaining);
-                                final Color col = clientOwe
-                                    ? const Color.fromARGB(231, 141, 47, 219)
+                                final Color col = isLoan || clientOwe
+                                    ? const Color.fromARGB(231, 141, 47, 219) // Violet pour les emprunts
                                     : (totalRemaining > 0 ? const Color.fromARGB(224, 219, 132, 2) : Colors.green);
 
                                 return Text(
@@ -1491,10 +1851,10 @@ class _HomePageState extends State<HomePage> {
                               },
                             ),
                             const SizedBox(height: 8),
-                           
                           ],
                         ),
                         const SizedBox(width: 12),
+                        // ✅ MODIFIÉ : PopupMenuButton avec option emprunt
                         PopupMenuButton<String>(
                           onSelected: (v) async {
                             if (v == 'payment') {
@@ -1529,9 +1889,30 @@ class _HomePageState extends State<HomePage> {
                                 if (res == true) {
                                   await fetchDebts();
                                   setState(() {
-                                    _expandedClients.add(client['id']);
+                                    final comp = '${client['id'].toString()}|debt';
+                                    _expandedClients.add(comp);
                                   });
                                 }
+                              }
+                            } else if (v == 'loan') {
+                              // ✅ NOUVEAU : Créer un emprunt
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AddLoanPage(
+                                    ownerPhone: widget.ownerPhone,
+                                    clients: clients,
+                                  ),
+                                ),
+                              );
+                              if (result == true) {
+                                await fetchDebts();
+                                setState(() {
+                                  final comp = '${client['id'].toString()}|loan';
+                                  _expandedClients.add(comp);
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Emprunt créé')),
+                                );
                               }
                             }
                           },
@@ -1540,13 +1921,33 @@ class _HomePageState extends State<HomePage> {
                               value: 'payment',
                               child: Row(
                                 children: [
-                                  Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
+                                  const Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
                                   const SizedBox(width: 8),
                                   Text('Ajouter paiement', style: TextStyle(color: textColor)),
                                 ],
                               ),
                             ),
-                            
+                            PopupMenuItem<String>(
+                              value: 'debt',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.add, size: 18, color: Colors.orange),
+                                  const SizedBox(width: 8),
+                                  Text('Créer une dette', style: TextStyle(color: textColor)),
+                                ],
+                              ),
+                            ),
+                            // ✅ NOUVEAU : Option emprunt
+                            PopupMenuItem<String>(
+                              value: 'loan',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.account_balance_wallet, size: 18, color: Color.fromARGB(255, 141, 47, 219)),
+                                  const SizedBox(width: 8),
+                                  Text('Créer un emprunt', style: TextStyle(color: textColor)),
+                                ],
+                              ),
+                            ),
                           ],
                           offset: const Offset(0, 40),
                           child: Icon(Icons.more_vert, color: textColor, size: 16),
@@ -1564,16 +1965,10 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Container(height: 0.5, color: borderColor),
                       ...clientDebts.map<Widget>((d) {
-                        final amountVal = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-                        double remainingVal = amountVal;
-                        try {
-                          if (d != null && d['remaining'] != null) {
-                            remainingVal = double.tryParse(d['remaining'].toString()) ?? remainingVal;
-                          } else if (d != null && d['total_paid'] != null) {
-                            remainingVal = amountVal - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-                          }
-                        } catch (_) {}
-                        final bool isPaid = d['paid'] == true || remainingVal <= 0;
+                        // ✅ CORRIGÉ : Utiliser les calculs corrects
+                        final totalDebt = (d['total_debt'] as double?) ?? 0.0;
+                        final remaining = (d['remaining'] as double?) ?? 0.0;
+                        final bool isPaid = d['paid'] == true || remaining <= 0;
 
                         String dueText = '-';
                         bool isOverdue = false;
@@ -1609,7 +2004,7 @@ class _HomePageState extends State<HomePage> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          AppSettings().formatCurrency(d['amount']),
+                                          AppSettings().formatCurrency(totalDebt),
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
@@ -1632,9 +2027,10 @@ class _HomePageState extends State<HomePage> {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Builder(builder: (_) {
-                                        final bool isOwe = remainingVal < 0;
+                                        final bool isOwe = remaining < 0;
+                                        final bool isLoan = d['type'] == 'loan'; // ✅ Vérifier le type
                                         return Text(
-                                          isOwe ? 'JE DOIS' : 'RESTE',
+                                          isLoan ? 'JE DOIS' : (isOwe ? 'JE DOIS' : 'RESTE'),
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
@@ -1644,13 +2040,14 @@ class _HomePageState extends State<HomePage> {
                                       }),
                                       const SizedBox(height: 4),
                                       Builder(builder: (_) {
-                                        final bool isOwe = remainingVal < 0;
-                                        final display = isOwe
-                                            ? AppSettings().formatCurrency(remainingVal.abs())
-                                            : AppSettings().formatCurrency(remainingVal);
-                                        final Color col = isOwe
+                                        final bool isOwe = remaining < 0;
+                                        final bool isLoan = d['type'] == 'loan'; // ✅ Vérifier le type
+                                        final display = isLoan || isOwe
+                                            ? AppSettings().formatCurrency(remaining.abs())
+                                            : AppSettings().formatCurrency(remaining);
+                                        final Color col = isLoan || isOwe
                                             ? const Color.fromARGB(231, 141, 47, 219)
-                                            : (remainingVal <= 0 ? Colors.green : (isOverdue ? Colors.red : textColor));
+                                            : (remaining <= 0 ? Colors.green : (isOverdue ? Colors.red : textColor));
 
                                         return Text(
                                           display,
@@ -1748,8 +2145,11 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Builder(builder: (_) {
                         final bool clientOwe = totalRemaining < 0;
+                        final clientDebts = debts.where((d) => d['client_id'] == c['id']).toList();
+                        final bool isLoan = clientDebts.isNotEmpty && clientDebts.first['type'] == 'loan'; // ✅ Vérifier le type
+                        
                         return Text(
-                          clientOwe ? 'JE DOIS' : 'À percevoir',
+                          isLoan ? 'JE DOIS' : (clientOwe ? 'JE DOIS' : 'À PERCEVOIR'),
                           style: TextStyle(
                             fontSize: 10,
                             color: textColorSecondary,
@@ -1760,10 +2160,14 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 2),
                       Builder(builder: (_) {
                         final bool clientOwe = totalRemaining < 0;
-                        final display = clientOwe
+                        final clientDebts = debts.where((d) => d['client_id'] == c['id']).toList();
+                        final bool isLoan = clientDebts.isNotEmpty && clientDebts.first['type'] == 'loan'; // ✅ Vérifier le type
+                        final display = isLoan || clientOwe
                             ? AppSettings().formatCurrency(totalRemaining.abs())
                             : AppSettings().formatCurrency(totalRemaining);
-                        final Color col = clientOwe ? const Color.fromARGB(231, 141, 47, 219) : (totalRemaining > 0 ? Colors.orange : Colors.green);
+                        final Color col = isLoan || clientOwe
+                            ? const Color.fromARGB(231, 141, 47, 219)
+                            : (totalRemaining > 0 ? Colors.orange : Colors.green);
                         return Text(
                           display,
                           style: TextStyle(
@@ -1817,6 +2221,22 @@ class _HomePageState extends State<HomePage> {
                             const SnackBar(content: Text('Dette ajoutée')),
                           );
                         }
+                      } else if (v == 'loan') {
+                        // ✅ NOUVEAU : Créer un emprunt
+                        final result = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AddLoanPage(
+                              ownerPhone: widget.ownerPhone,
+                              clients: clients,
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          await fetchDebts();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Emprunt créé')),
+                          );
+                        }
                       }
                     },
                     itemBuilder: (context) => [
@@ -1824,13 +2244,33 @@ class _HomePageState extends State<HomePage> {
                         value: 'payment',
                         child: Row(
                           children: [
-                            Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
+                            const Icon(Icons.monetization_on_outlined, size: 18, color: Colors.green),
                             const SizedBox(width: 8),
                             Text('Ajouter paiement', style: TextStyle(color: textColor)),
                           ],
                         ),
                       ),
-                     
+                      PopupMenuItem<String>(
+                        value: 'debt',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add, size: 18, color: Colors.orange),
+                            const SizedBox(width: 8),
+                            Text('Créer une dette', style: TextStyle(color: textColor)),
+                          ],
+                        ),
+                      ),
+                      // ✅ NOUVEAU : Option emprunt
+                      PopupMenuItem<String>(
+                        value: 'loan',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet, size: 18, color: Color.fromARGB(255, 141, 47, 219)),
+                            const SizedBox(width: 8),
+                            Text('Créer un emprunt', style: TextStyle(color: textColor)),
+                          ],
+                        ),
+                      ),
                     ],
                     offset: const Offset(0, 40),
                     child: Icon(Icons.more_vert, color: textColor, size: 16),
@@ -1903,7 +2343,7 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.orange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.store,
                             size: 18,
                             color: Colors.orange,
@@ -1916,7 +2356,7 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.orange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.person,
                             size: 18,
                             color: Colors.orange,
@@ -1936,8 +2376,8 @@ class _HomePageState extends State<HomePage> {
                                     ? (boutiqueName.isNotEmpty 
                                         ? boutiqueName.toUpperCase()
                                         : (widget.ownerShopName ?? 'Gestion de dettes').toUpperCase())
-                                    : ((AppSettings().firstName ?? '') + ' ' + (AppSettings().lastName ?? '')).isNotEmpty
-                                        ? ((AppSettings().firstName ?? '') + ' ' + (AppSettings().lastName ?? '')).toUpperCase()
+                                    : ('${AppSettings().firstName ?? ''} ${AppSettings().lastName ?? ''}').isNotEmpty
+                                        ? ('${AppSettings().firstName ?? ''} ${AppSettings().lastName ?? ''}').toUpperCase()
                                         : 'Utilisateur',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -1993,7 +2433,7 @@ class _HomePageState extends State<HomePage> {
                                       valueColor: AlwaysStoppedAnimation(Colors.orange),
                                     ),
                                   )
-                                : Icon(
+                                : const Icon(
                                     Icons.sync,
                                     size: 18,
                                     color: Colors.orange,
@@ -2026,7 +2466,7 @@ class _HomePageState extends State<HomePage> {
                               const PopupMenuItem(value: 'settings', child: Text('Paramètres')),
                               const PopupMenuItem(value: 'logout', child: Text('Déconnexion')),
                             ],
-                            icon: Icon(
+                            icon: const Icon(
                               Icons.more_vert,
                               size: 18,
                               color: Colors.orange,
@@ -2131,7 +2571,7 @@ class _HomePageState extends State<HomePage> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () async {
-                          await createDebt();
+                          await _showAddChoice();
                         },
                         style: ElevatedButton.styleFrom(
                           shape: const CircleBorder(),

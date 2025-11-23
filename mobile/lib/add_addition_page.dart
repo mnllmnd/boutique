@@ -21,6 +21,15 @@ class _AddAdditionPageState extends State<AddAdditionPage> {
   DateTime _addedAt = DateTime.now();
   bool _loading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // ✅ NOUVEAU : Écouter les changements du montant
+    _amountCtl.addListener(() {
+      setState(() {});
+    });
+  }
+
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
     try {
@@ -37,6 +46,11 @@ class _AddAdditionPageState extends State<AddAdditionPage> {
       lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _addedAt = picked);
+  }
+
+  // ✅ NOUVEAU : Récupérer le montant saisi
+  double _getEnteredAmount() {
+    return double.tryParse(_amountCtl.text.replaceAll(',', '')) ?? 0.0;
   }
 
   Future<void> _submit() async {
@@ -204,10 +218,15 @@ class _AddAdditionPageState extends State<AddAdditionPage> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
+                  // ✅ NOUVEAU : Désactiver si pas de montant valide
+                  onPressed: _loading || _getEnteredAmount() <= 0 ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.buttonBackground,
-                    foregroundColor: colors.buttonForeground,
+                    backgroundColor: _loading || _getEnteredAmount() <= 0
+                        ? Colors.grey[400]
+                        : colors.buttonBackground,
+                    foregroundColor: _loading || _getEnteredAmount() <= 0
+                        ? Colors.grey[700]
+                        : colors.buttonForeground,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(0),
@@ -222,7 +241,7 @@ class _AddAdditionPageState extends State<AddAdditionPage> {
                           color: colors.buttonForeground,
                         ),
                       )
-                    : Text(
+                    : const Text(
                         'AJOUTER LE MONTANT',
                         style: TextStyle(
                           fontSize: 13,
@@ -282,12 +301,12 @@ class _ZaraColors {
 
   _ZaraColors(this.isDark);
 
-  Color get background => isDark ? Color.fromARGB(255, 0, 0, 0) : Color(0xFFFFFFFF);
-  Color get surface => isDark ? Color.fromARGB(255, 0, 0, 0) : Color(0xFFFFFFFF);
-  Color get textPrimary => isDark ? Color(0xFFFFFFFF) : Color(0xFF000000);
-  Color get textSecondary => isDark ? Color(0xFFB0B0B0) : Color(0xFF666666);
-  Color get textHint => isDark ? Color(0xFF888888) : Color(0xFF999999);
-  Color get border => isDark ? Color(0xFF333333) : Color(0xFFDDDDDD);
-  Color get buttonBackground => isDark ? Color(0xFFFFFFFF) : Color(0xFF000000);
-  Color get buttonForeground => isDark ? Color(0xFF000000) : Color(0xFFFFFFFF);
+  Color get background => isDark ? const Color.fromARGB(255, 0, 0, 0) : const Color(0xFFFFFFFF);
+  Color get surface => isDark ? const Color.fromARGB(255, 0, 0, 0) : const Color(0xFFFFFFFF);
+  Color get textPrimary => isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+  Color get textSecondary => isDark ? const Color(0xFFB0B0B0) : const Color(0xFF666666);
+  Color get textHint => isDark ? const Color(0xFF888888) : const Color(0xFF999999);
+  Color get border => isDark ? const Color(0xFF333333) : const Color(0xFFDDDDDD);
+  Color get buttonBackground => isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+  Color get buttonForeground => isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
 }

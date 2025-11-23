@@ -30,7 +30,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
   bool _isRecording = false;
   late AnimationController _pulseController;
   late AnimationController _amountAnimationCtl;
-  List<double> _recentAmounts = [];
+  final List<double> _recentAmounts = [];
   double _displayAmount = 0.0;
 
   String get apiHost {
@@ -166,7 +166,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       foregroundColor: textColorSecondary,
                     ),
-                    child: Text(
+                    child: const Text(
                       'ANNULER',
                       style: TextStyle(
                         fontSize: 11,
@@ -184,7 +184,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                     ),
-                    child: Text(
+                    child: const Text(
                       'AJOUTER',
                       style: TextStyle(
                         fontSize: 11,
@@ -330,7 +330,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       foregroundColor: textColorSecondary,
                     ),
-                    child: Text(
+                    child: const Text(
                       'NON',
                       style: TextStyle(
                         fontSize: 11,
@@ -348,7 +348,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                     ),
-                    child: Text(
+                    child: const Text(
                       'SÉLECTIONNER',
                       style: TextStyle(
                         fontSize: 11,
@@ -411,7 +411,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                   ),
-                  child: Text(
+                  child: const Text(
                     'FERMER',
                     style: TextStyle(
                       fontSize: 11,
@@ -459,7 +459,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: Colors.black,
               onPrimary: Colors.white,
               surface: Colors.white,
@@ -664,7 +664,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                 await _startRecording();
                                 setStateSheet(() {});
                               },
-                              icon: Icon(Icons.mic, size: 16),
+                              icon: const Icon(Icons.mic, size: 16),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? Colors.white : Colors.black,
                                 foregroundColor: isDark ? Colors.black : Colors.white,
@@ -672,7 +672,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                               ),
-                              label: Text(
+                              label: const Text(
                                 'DÉMARRER',
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
                               ),
@@ -683,8 +683,8 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                 await _stopRecording();
                                 setStateSheet(() {});
                               },
-                              icon: Icon(Icons.stop, size: 16),
-                              label: Text(
+                              icon: const Icon(Icons.stop, size: 16),
+                              label: const Text(
                                 'ARRÊTER',
                                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
                               ),
@@ -704,8 +704,8 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                     onPressed: () async {
                                       await _playAudio();
                                     },
-                                    icon: Icon(Icons.play_arrow, size: 16),
-                                    label: Text(
+                                    icon: const Icon(Icons.play_arrow, size: 16),
+                                    label: const Text(
                                       'ÉCOUTER',
                                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                                     ),
@@ -727,7 +727,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                                     side: BorderSide(color: Colors.red.shade300, width: 0.5),
                                   ),
-                                  child: Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                                  child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                                 ),
                               ],
                             ),
@@ -747,7 +747,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             foregroundColor: textColorSecondary,
                           ),
-                          child: Text(
+                          child: const Text(
                             'ANNULER',
                             style: TextStyle(
                               fontSize: 11,
@@ -769,7 +769,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
                           ),
-                          child: Text(
+                          child: const Text(
                             'ENREGISTRER',
                             style: TextStyle(
                               fontSize: 11,
@@ -802,25 +802,50 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
       final amount = double.tryParse(_amountCtl.text.replaceAll(',', '')) ?? 0.0;
       final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
       
+      // ✅ NOUVEAU : Déterminer le type basé sur la page (debt ou loan)
+      const debtType = 'debt'; // Cette page est pour les dettes
+      
       // Chercher s'il existe une dette pour ce client
       final debtsRes = await http.get(Uri.parse('$apiHost/debts'), headers: headers).timeout(const Duration(seconds: 8));
       
-      Map<String, dynamic>? existingDebt;
+      Map<String, dynamic>? existingDebtSameType;
+      Map<String, dynamic>? existingDebtDifferentType;
+      
       if (debtsRes.statusCode == 200) {
         final debtsList = json.decode(debtsRes.body) as List?;
         if (debtsList != null) {
-          // Trouver la première dette pour ce client
+          // Chercher une dette du MÊME type et du type OPPOSÉ
           for (final d in debtsList) {
             if (d != null && d['client_id'] == _clientId) {
-              existingDebt = (d as Map).cast<String, dynamic>();
-              break;
+              final existingType = d['type'] ?? 'debt';
+              if (existingType == debtType) {
+                existingDebtSameType = (d as Map).cast<String, dynamic>();
+              } else {
+                existingDebtDifferentType = (d as Map).cast<String, dynamic>();
+              }
             }
           }
         }
       }
       
-      if (existingDebt != null) {
-        // Ajouter comme montant ajouté à la dette existante
+      // ✅ NOUVEAU : Si une dette de type différent existe, avertir l'utilisateur
+      if (existingDebtDifferentType != null && existingDebtSameType == null) {
+        setState(() => _saving = false);
+        
+        // Afficher un dialogue d'avertissement
+        final create = await _showTypeConflictDialog(debtType);
+        
+        if (create != true) {
+          return;
+        }
+        
+        setState(() => _saving = true);
+        // Continuer avec la création d'une nouvelle entrée
+        existingDebtSameType = null;
+      }
+      
+      if (existingDebtSameType != null) {
+        // ✅ Ajouter comme montant ajouté à la dette existante du même type
         final additionBody = {
           'amount': amount,
           'added_at': DateTime.now().toIso8601String(),
@@ -829,7 +854,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
         };
         
         final res = await http.post(
-          Uri.parse('$apiHost/debts/${existingDebt['id']}/add'),
+          Uri.parse('$apiHost/debts/${existingDebtSameType['id']}/add'),
           headers: headers,
           body: json.encode(additionBody),
         ).timeout(const Duration(seconds: 8));
@@ -841,17 +866,18 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
           await _showMinimalDialog('Erreur lors de l\'ajout du montant');
         }
       } else {
-        // Créer une nouvelle dette
+        // ✅ Créer une nouvelle dette
         final body = {
           'client_id': _clientId,
           'amount': amount,
+          'type': debtType,
           'due_date': _due == null ? null : DateFormat('yyyy-MM-dd').format(_due!),
           'notes': _notesCtl.text,
           if (_audioPath != null) 'audio_path': _audioPath,
         };
         final res = await http.post(Uri.parse('$apiHost/debts'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
         if (res.statusCode == 201) {
-          _showMinimalSnackbar('Dette créée', isSuccess: true);
+          _showMinimalSnackbar('Prêt créé', isSuccess: true);
           Navigator.of(context).pop(true);
         } else {
           await _showMinimalDialog('Erreur lors de la création');
@@ -859,7 +885,121 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
       }
     } catch (e) {
       await _showMinimalDialog('Erreur réseau');
-    } 
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // ✅ NOUVEAU : Dialogue d'avertissement pour conflit de type
+  Future<bool?> _showTypeConflictDialog(String newType) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
+    
+    return showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Theme.of(context).cardColor,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.warning, size: 24, color: Colors.orange),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'TYPE DIFFÉRENT',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ce client a déjà ${newType == 'debt' ? 'un EMPRUNT' : 'une DETTE'}.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Créer une nouvelle ${newType == 'debt' ? 'DETTE' : 'EMPRUNT'} séparera les deux relations.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: textColorSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    style: TextButton.styleFrom(
+                      foregroundColor: textColorSecondary,
+                    ),
+                    child: const Text(
+                      'ANNULER',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.white : Colors.black,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                    ),
+                    child: const Text(
+                      'CRÉER',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -911,7 +1051,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                         padding: EdgeInsets.zero,
                         splashRadius: 24,
                       ),
-                      Spacer(),
+                      const Spacer(),
                       // Indicateur décoratif
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -938,7 +1078,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
+                            const Text(
                               'EN COURS',
                               style: TextStyle(
                                 fontSize: 9,
@@ -968,7 +1108,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'NOUVELLE DETTE',
+                            'NOUVEAU PRÊT',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -982,7 +1122,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       Padding(
                         padding: const EdgeInsets.only(left: 15),
                         child: Text(
-                          'Enregistrez un nouveau montant à recouvrer',
+                          'Je sors de l\'argent au client',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w400,
@@ -1037,7 +1177,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                 const SizedBox(height: 12),
                                 TextFormField(
                                   controller: _amountCtl,
-                                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                   style: TextStyle(
                                     color: textColor,
                                     fontSize: 32,
@@ -1135,7 +1275,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                                 child: Text(
                                                   NumberFormat('#,###', 'fr_FR')
                                                       .format(amount),
-                                                  style: TextStyle(
+                                                  style: const TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w500,
                                                     color: subtleAccent,
@@ -1180,7 +1320,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                   children: [
                                     Expanded(
                                       child: DropdownButtonFormField<int>(
-                                        value: _clientId,
+                                        initialValue: _clientId,
                                         isExpanded: true,
                                         style: TextStyle(
                                           fontSize: 14,
@@ -1295,7 +1435,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.calendar_today,
                                       size: 14,
                                       color: Colors.orange,
@@ -1370,30 +1510,30 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (_saving)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 10),
+                              const Padding(
+                                padding: EdgeInsets.only(right: 10),
                                 child: SizedBox(
                                   height: 14,
                                   width: 14,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: const AlwaysStoppedAnimation(
+                                    valueColor: AlwaysStoppedAnimation(
                                       Color.fromRGBO(213, 128, 1, 1),
                                     ),
                                   ),
                                 ),
                               )
                             else
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8),
                                 child: Icon(
                                   Icons.add,
                                   size: 18,
-                                  color: const Color.fromARGB(255, 215, 129, 0),
+                                  color: Color.fromARGB(255, 215, 129, 0),
                                 ),
                               ),
                             Text(
-                              _saving ? 'CRÉATION...' : 'CRÉER LA DETTE',
+                              _saving ? 'CRÉATION...' : 'PRÊTER',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
