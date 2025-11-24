@@ -41,7 +41,7 @@ class AuthOfflineService {
         prefs.setString(_KEY_PHONE, phone),
         prefs.setString(_KEY_PASSWORD_HASH, passwordHash),
         prefs.setString(_KEY_TOKEN, token),
-        prefs.setInt(_KEY_TOKEN_EXPIRY, now.add(Duration(days: 30)).millisecondsSinceEpoch),
+        prefs.setInt(_KEY_TOKEN_EXPIRY, now.add(const Duration(days: 30)).millisecondsSinceEpoch),
         prefs.setString(_KEY_FIRST_NAME, firstName),
         prefs.setString(_KEY_LAST_NAME, lastName),
         prefs.setString(_KEY_SHOP_NAME, shopName),
@@ -186,7 +186,7 @@ class AuthOfflineService {
 
       await Future.wait([
         prefs.setString(_KEY_TOKEN, newToken),
-        prefs.setInt(_KEY_TOKEN_EXPIRY, now.add(Duration(days: 30)).millisecondsSinceEpoch),
+        prefs.setInt(_KEY_TOKEN_EXPIRY, now.add(const Duration(days: 30)).millisecondsSinceEpoch),
       ]);
 
       print('✅ Cached token updated');

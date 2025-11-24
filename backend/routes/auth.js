@@ -19,6 +19,116 @@ function generateDeviceId() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+// Quick register - only requires phone number, creates account instantly
+// User can complete profile later in settings (name, lastname, PIN optional)
+router.post('/register-quick', async (req, res) => {
+  const { phone, device_id } = req.body;
+  
+  if (!phone) {
+    return res.status(400).json({ error: 'phone required' });
+  }
+  
+  try {
+    // Check if phone already exists
+    const existingPhone = await pool.query('SELECT id FROM owners WHERE phone=$1', [phone]);
+    if (existingPhone.rowCount > 0) {
+      return res.status(409).json({ error: 'Phone number already registered' });
+    }
+    
+    // Generate token for instant access
+    const authToken = generateToken();
+    const tokenExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    
+    // Create account with ONLY phone - name, PIN will be optional
+    const result = await pool.query(
+      'INSERT INTO owners (phone, first_name, last_name, auth_token, token_expires_at, token_created_at, device_id, last_login_at, pin) VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7) RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
+      [
+        phone,
+        '', // Empty first_name
+        '', // Empty last_name
+        authToken,
+        tokenExpiresAt,
+        device_id || generateDeviceId(),
+        null  // No PIN initially
+      ]
+    );
+    
+    console.log('Quick registration successful for phone:', phone);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') return res.status(409).json({ error: 'Phone number already registered' });
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Login by phone only - for users who have an existing account (with or without PIN)
+// If user has no PIN, grant immediate access
+// If user has PIN, return a flag indicating PIN is required
+router.post('/login-phone', async (req, res) => {
+  const { phone, device_id } = req.body;
+  
+  if (!phone) {
+    return res.status(400).json({ error: 'phone required' });
+  }
+  
+  try {
+    // Check if owner exists with this phone
+    const result = await pool.query(
+      'SELECT id, phone, first_name, last_name, shop_name, pin, auth_token, boutique_mode_enabled FROM owners WHERE phone=$1',
+      [phone]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const owner = result.rows[0];
+    
+    // If owner has NO PIN set, grant immediate access
+    if (owner.pin === null || owner.pin === '') {
+      // Generate new token
+      const authToken = generateToken();
+      const tokenExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+      
+      // Update with new token
+      const updateResult = await pool.query(
+        'UPDATE owners SET auth_token=$1, token_expires_at=$2, token_created_at=NOW(), device_id=$3, last_login_at=NOW() WHERE id=$4 RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
+        [authToken, tokenExpiresAt, device_id || generateDeviceId(), owner.id]
+      );
+      
+      console.log('Direct login successful for phone (no PIN):', phone);
+      return res.json(updateResult.rows[0]);
+    }
+    
+    // If owner HAS a PIN, return flag indicating PIN is required
+    // Generate temporary token that's valid only for PIN verification
+    const tempToken = generateToken();
+    
+    // Save temp token temporarily so it can be used in PIN verification
+    await pool.query(
+      'UPDATE owners SET temp_token=$1 WHERE id=$2',
+      [tempToken, owner.id]
+    );
+    
+    console.log('PIN verification required for phone:', phone);
+    res.json({
+      id: owner.id,
+      phone: owner.phone,
+      first_name: owner.first_name,
+      last_name: owner.last_name,
+      shop_name: owner.shop_name,
+      temp_token: tempToken,
+      pin_required: true,
+      boutique_mode_enabled: owner.boutique_mode_enabled,
+      message: 'Veuillez entrer votre PIN pour accéder à votre compte'
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'DB error' });
+  }
+});
+
 // Register owner with PIN (replaces password-based registration)
 router.post('/register-pin', async (req, res) => {
   const { phone, pin, first_name, last_name, shop_name, device_id } = req.body;
@@ -204,21 +314,97 @@ router.patch('/profile', async (req, res) => {
   const { phone, first_name, last_name, shop_name } = req.body;
   const ownerPhone = req.headers['x-owner'] || req.headers['X-Owner'];
   
-  if (!ownerPhone) return res.status(401).json({ error: 'Not authenticated' });
+  // Try to get auth from bearer token if x-owner is not provided
+  let authPhone = ownerPhone;
+  if (!authPhone) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const tokenResult = await pool.query('SELECT phone FROM owners WHERE auth_token=$1', [token]);
+        if (tokenResult.rowCount > 0) {
+          authPhone = tokenResult.rows[0].phone;
+        }
+      } catch (err) {
+        console.error('Error verifying bearer token:', err);
+      }
+    }
+  }
+  
+  if (!authPhone) return res.status(401).json({ error: 'Not authenticated' });
   
   try {
-    const newPhone = phone || ownerPhone; // Use provided phone or keep existing
+    const newPhone = phone || authPhone; // Use provided phone or keep existing
     const result = await pool.query(
       'UPDATE owners SET phone=$1, first_name=$2, last_name=$3, shop_name=$4, updated_at=NOW() WHERE phone=$5 RETURNING id, phone, shop_name, first_name, last_name',
-      [newPhone, first_name || '', last_name || '', shop_name || '', ownerPhone]
+      [newPhone, first_name || '', last_name || '', shop_name || null, authPhone]
     );
     
     if (result.rowCount === 0) return res.status(404).json({ error: 'Owner not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error('Error in profile patch:', err);
     if (err.code === '23505') return res.status(409).json({ error: 'Phone number already in use' });
-    res.status(500).json({ error: 'DB error' });
+    res.status(500).json({ error: 'DB error', details: err.message });
+  }
+});
+
+// Complete profile - user filled signup quickly with just phone, now completes with name/lastname/PIN
+// Called from Settings > "Complete Profile"
+router.patch('/complete-profile', async (req, res) => {
+  const { auth_token, first_name, last_name, pin, shop_name } = req.body;
+  
+  if (!auth_token) {
+    return res.status(401).json({ error: 'auth_token required' });
+  }
+  
+  try {
+    // Verify token and get owner
+    const ownerResult = await pool.query(
+      'SELECT id, phone FROM owners WHERE auth_token=$1',
+      [auth_token]
+    );
+    
+    if (ownerResult.rowCount === 0) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    const owner = ownerResult.rows[0];
+    
+    // Prepare update object
+    let hashedPin = undefined;
+    
+    // If PIN provided, hash it
+    if (pin && pin.length === 4 && /^\d+$/.test(pin)) {
+      hashedPin = await bcrypt.hash(pin, SALT_ROUNDS);
+    } else if (pin && pin.length > 0) {
+      return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+    }
+    
+    // Build update query
+    let updateQuery;
+    let params;
+    
+    if (hashedPin) {
+      updateQuery = 'UPDATE owners SET first_name=$1, last_name=$2, pin=$3, shop_name=$4, updated_at=NOW() WHERE id=$5 RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled';
+      params = [first_name || '', last_name || '', hashedPin, shop_name || null, owner.id];
+    } else {
+      updateQuery = 'UPDATE owners SET first_name=$1, last_name=$2, shop_name=$3, updated_at=NOW() WHERE id=$4 RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled';
+      params = [first_name || '', last_name || '', shop_name || null, owner.id];
+    }
+    
+    const result = await pool.query(updateQuery, params);
+    
+    if (result.rowCount === 0) {
+      console.error('Failed to update owner:', owner.id);
+      return res.status(404).json({ error: 'Owner not found' });
+    }
+    
+    console.log('Profile completed for phone:', owner.phone);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error in complete-profile:', err);
+    res.status(500).json({ error: 'DB error', details: err.message });
   }
 });
 
@@ -321,9 +507,9 @@ router.post('/login-pin', async (req, res) => {
     // If Bearer token provided, use it to identify the user
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      console.log('Token found, searching for user with this token...');
+      console.log('Token found, searching for user with this temp token...');
       const result = await pool.query(
-        'SELECT id, phone, pin, shop_name, first_name, last_name, boutique_mode_enabled FROM owners WHERE auth_token=$1',
+        'SELECT id, phone, pin, shop_name, first_name, last_name, boutique_mode_enabled FROM owners WHERE temp_token=$1',
         [token]
       );
       
@@ -352,9 +538,9 @@ router.post('/login-pin', async (req, res) => {
     const authToken = generateToken();
     const tokenExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
     
-    // Update with new token
+    // Update with new token and clear temp_token
     const updateResult = await pool.query(
-      'UPDATE owners SET auth_token=$1, token_expires_at=$2, token_created_at=NOW(), last_login_at=NOW() WHERE id=$3 RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
+      'UPDATE owners SET auth_token=$1, token_expires_at=$2, token_created_at=NOW(), last_login_at=NOW(), temp_token=NULL WHERE id=$3 RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
       [authToken, tokenExpiresAt, owner.id]
     );
     

@@ -193,9 +193,9 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('CONFIRMER LE PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+              const Text('CONFIRMER LE PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
               const SizedBox(height: 16),
-              Text('Entrez à nouveau votre PIN à 4 chiffres', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
+              const Text('Entrez à nouveau votre PIN à 4 chiffres', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
               const SizedBox(height: 24),
               // PIN input field with system keyboard
               TextField(
@@ -325,7 +325,7 @@ class _LoginPageState extends State<LoginPage> {
           elevation: 0,
           backgroundColor: Colors.transparent,
           bottom: TabBar(
-            tabs: [
+            tabs: const [
               Tab(text: 'CONNEXION'),
               Tab(text: 'INSCRIPTION'),
             ],
@@ -338,28 +338,28 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               // Login Tab
               SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 20),
                         Container(
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(color: isDark ? Colors.white : Colors.black),
                           child: Icon(Icons.receipt_long, color: isDark ? Colors.black : Colors.white, size: 32),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         Text('GESTION DE DETTES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 2, color: textColor)),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text('Connexion PIN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w300, color: textColorSecondary)),
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 32),
 
                         Text('ENTREZ VOTRE PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5, color: textColorSecondary)),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
 
                         // PIN input field with system keyboard
                         TextField(
@@ -372,7 +372,7 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 2)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 2)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 2)),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                             counterText: '',
                             suffixIcon: IconButton(
                               icon: Icon(showPin ? Icons.visibility : Icons.visibility_off, size: 20),
@@ -386,9 +386,7 @@ class _LoginPageState extends State<LoginPage> {
                             }
                           },
                         ),
-                        const SizedBox(height: 40),
-
-                        const SizedBox(height: 80),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -397,16 +395,16 @@ class _LoginPageState extends State<LoginPage> {
 
               // Signup Tab
               SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
                         Text('INSCRIPTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5, color: textColorSecondary)),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
                         TextField(
                           controller: firstNameCtl,
@@ -416,10 +414,10 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
-                            contentPadding: const EdgeInsets.all(16),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
                         TextField(
                           controller: lastNameCtl,
@@ -429,10 +427,10 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
-                            contentPadding: const EdgeInsets.all(16),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
                         TextField(
                           controller: phoneCtl,
@@ -443,10 +441,10 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
-                            contentPadding: const EdgeInsets.all(16),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
                         TextField(
                           controller: shopNameCtl,
@@ -456,13 +454,13 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
-                            contentPadding: const EdgeInsets.all(16),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
                         Text('CHOISIR UN PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5, color: textColorSecondary)),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
                         // PIN input field for signup
                         TextField(
@@ -475,7 +473,7 @@ class _LoginPageState extends State<LoginPage> {
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 2)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 2)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 2)),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                             counterText: '',
                             suffixIcon: IconButton(
                               icon: Icon(showPin ? Icons.visibility : Icons.visibility_off, size: 20),
@@ -486,7 +484,7 @@ class _LoginPageState extends State<LoginPage> {
                             setState(() => pin = value);
                           },
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
                         SizedBox(
                           width: double.infinity,
@@ -498,7 +496,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
 
-                        const SizedBox(height: 80),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),

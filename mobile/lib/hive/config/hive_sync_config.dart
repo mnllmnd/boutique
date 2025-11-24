@@ -202,12 +202,12 @@ class HiveSyncConfig {
 
   /// Obtenir les paramètres de timeout
   static Duration getSyncTimeout() {
-    return Duration(seconds: SYNC_REQUEST_TIMEOUT_SECONDS);
+    return const Duration(seconds: SYNC_REQUEST_TIMEOUT_SECONDS);
   }
 
   /// Obtenir l'intervalle d'auto-sync
   static Duration getAutoSyncInterval() {
-    return Duration(seconds: AUTO_SYNC_INTERVAL_SECONDS);
+    return const Duration(seconds: AUTO_SYNC_INTERVAL_SECONDS);
   }
 
   /// Convertir le timeout en millisecondes

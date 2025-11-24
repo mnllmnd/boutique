@@ -99,3 +99,6 @@ BEGIN
     ALTER TABLE owners ALTER COLUMN pin TYPE VARCHAR(255);
   END IF;
 END$$;
+
+-- Add temp_token column for PIN verification
+ALTER TABLE owners ADD COLUMN IF NOT EXISTS temp_token VARCHAR(255);

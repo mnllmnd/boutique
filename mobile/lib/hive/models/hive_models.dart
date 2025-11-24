@@ -1,5 +1,35 @@
 // Modèles Hive - Données locales pour synchronisation
 
+// Helper function to parse numbers safely (handles both String and num)
+double _parseAmount(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) {
+    try {
+      return double.parse(value);
+    } catch (e) {
+      print('Error parsing amount "$value": $e');
+      return 0.0;
+    }
+  }
+  return 0.0;
+}
+
+int _parseId(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is String) {
+    try {
+      return int.parse(value);
+    } catch (e) {
+      print('Error parsing id "$value": $e');
+      return 0;
+    }
+  }
+  return 0;
+}
+
 class HiveClient {
   final int id;
   final String name;
@@ -122,14 +152,14 @@ class HiveDebt {
   });
 
   factory HiveDebt.fromJson(Map<String, dynamic> json) => HiveDebt(
-        id: json['id'] as int,
+        id: _parseId(json['id']),
         creditor: json['creditor'] as String,
-        amount: (json['amount'] as num).toDouble(),
+        amount: _parseAmount(json['amount']),
         type: json['type'] as String,
-        clientId: json['client_id'] as int,
+        clientId: _parseId(json['client_id']),
         fromUser: json['from_user'] as String,
         toUser: json['to_user'] as String,
-        balance: (json['balance'] as num).toDouble(),
+        balance: _parseAmount(json['balance']),
         paid: json['paid'] as bool? ?? false,
         paidAt: json['paid_at'] != null
             ? DateTime.parse(json['paid_at'] as String)
@@ -256,9 +286,9 @@ class HivePayment {
   });
 
   factory HivePayment.fromJson(Map<String, dynamic> json) => HivePayment(
-        id: json['id'] as int,
-        debtId: json['debt_id'] as int,
-        amount: (json['amount'] as num).toDouble(),
+        id: _parseId(json['id']),
+        debtId: _parseId(json['debt_id']),
+        amount: _parseAmount(json['amount']),
         paidAt: DateTime.parse(json['paid_at'] as String),
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -355,9 +385,9 @@ class HiveDebtAddition {
 
   factory HiveDebtAddition.fromJson(Map<String, dynamic> json) =>
       HiveDebtAddition(
-        id: json['id'] as int,
-        debtId: json['debt_id'] as int,
-        amount: (json['amount'] as num).toDouble(),
+        id: _parseId(json['id']),
+        debtId: _parseId(json['debt_id']),
+        amount: _parseAmount(json['amount']),
         addedAt: DateTime.parse(json['added_at'] as String),
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),

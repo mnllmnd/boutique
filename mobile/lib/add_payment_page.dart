@@ -257,7 +257,7 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.error_outline, size: 16, color: Colors.red),
+                                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
@@ -278,7 +278,7 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Text(
                                   'Montant restant: ${_getRemainingAmount().toStringAsFixed(2)} F',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: Colors.blue,
                                     fontWeight: FontWeight.w500,

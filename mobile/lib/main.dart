@@ -16,7 +16,9 @@ import 'hive/hive_service_manager.dart';
 import 'team_screen.dart';
 import 'app_settings.dart';
 import 'settings_screen.dart';
-import 'login_page.dart';
+import 'quick_login_page.dart';
+import 'returning_user_page.dart';
+import 'services/pin_auth_offline_service.dart';
 import 'add_debt_page.dart';
 import 'add_client_page.dart';
 import 'add_addition_page.dart';
@@ -59,6 +61,9 @@ class _MyAppState extends State<MyApp> {
   String? ownerPhone;
   String? ownerShopName;
   int? ownerId;
+  bool? shouldShowPinEntry;
+  String? cachedPhoneForReturning;
+  bool? cachedHasPinForReturning;
   late AppSettings _appSettings;
 
   String get apiHost {
@@ -93,6 +98,10 @@ class _MyAppState extends State<MyApp> {
     final shop = prefs.getString('owner_shop_name');
     final id = prefs.getInt('owner_id');
     
+    // Check if user has PIN configured
+    final pinService = PinAuthOfflineService();
+    final hasPinSet = await pinService.hasPinSet();
+    
     // Try to auto-login with token
     if (phone != null) {
       await _appSettings.initForOwner(phone);
@@ -113,6 +122,7 @@ class _MyAppState extends State<MyApp> {
               ownerPhone = data['phone'] ?? phone;
               ownerShopName = data['shop_name'] ?? shop;
               ownerId = data['id'] ?? id;
+              cachedHasPinForReturning = hasPinSet;
             });
             return; // Auto-login successful
           }
@@ -127,6 +137,7 @@ class _MyAppState extends State<MyApp> {
       ownerPhone = phone;
       ownerShopName = shop;
       ownerId = id;
+      cachedHasPinForReturning = hasPinSet;
     });
   }
 
@@ -144,15 +155,43 @@ class _MyAppState extends State<MyApp> {
       await settings.setProfileInfo(firstName, lastName, shopName ?? '');
     }
     
-    setState(() { ownerPhone = phone; ownerShopName = shopName; ownerId = id; });
+    // Check if user has PIN configured
+    final pinService = PinAuthOfflineService();
+    final hasPinSet = await pinService.hasPinSet();
+    
+    setState(() { 
+      ownerPhone = phone; 
+      ownerShopName = shopName; 
+      ownerId = id;
+      cachedHasPinForReturning = hasPinSet;
+    });
   }
 
   Future clearOwner() async {
+    final pinService = PinAuthOfflineService();
+    
+    // Check if user has a PIN set
+    final hasPinSet = await pinService.hasPinSet();
+    
+    // Only allow logout if user has a PIN
+    // If no PIN, user stays logged in indefinitely
+    if (!hasPinSet) {
+      // No PIN = no logout allowed
+      return;
+    }
+    
+    // User has PIN - allow logout to PIN entry screen
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('owner_phone');
-    await prefs.remove('owner_shop_name');
-    await prefs.remove('owner_id');
-    setState(() { ownerPhone = null; ownerShopName = null; ownerId = null; });
+    final phone = prefs.getString('owner_phone');
+    
+    if (phone != null) {
+      // Store for ReturningUserPage with PIN entry
+      setState(() {
+        shouldShowPinEntry = true;
+        cachedPhoneForReturning = phone;
+        cachedHasPinForReturning = true;  // We know PIN is set
+      });
+    }
   }
 
   @override
@@ -160,9 +199,32 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Boutique - Gestion de dettes',
       theme: getAppTheme(lightMode: _appSettings.lightMode),
-      home: ownerPhone == null
-          ? LoginPage(onLogin: (phone, shop, id, firstName, lastName, boutiqueModeEnabled) => setOwner(phone: phone, shopName: shop, id: id, firstName: firstName, lastName: lastName, boutiqueModeEnabled: boutiqueModeEnabled))
-          : HomePage(ownerPhone: ownerPhone!, ownerShopName: ownerShopName, onLogout: clearOwner),
+      home: shouldShowPinEntry == true && cachedPhoneForReturning != null
+          ? ReturningUserPage(
+              phone: cachedPhoneForReturning!,
+              hasPinSet: cachedHasPinForReturning ?? false,
+              onLogin: (phone, shop, id, firstName, lastName, boutiqueModeEnabled) {
+                setOwner(phone: phone, shopName: shop, id: id, firstName: firstName, lastName: lastName, boutiqueModeEnabled: boutiqueModeEnabled);
+                setState(() {
+                  shouldShowPinEntry = false;
+                  cachedPhoneForReturning = null;
+                  cachedHasPinForReturning = null;
+                });
+              },
+              onBackToQuickSignup: () {
+                setState(() {
+                  shouldShowPinEntry = false;
+                  cachedPhoneForReturning = null;
+                  cachedHasPinForReturning = null;
+                  ownerPhone = null;
+                  ownerShopName = null;
+                  ownerId = null;
+                });
+              },
+            )
+          : ownerPhone == null
+              ? QuickLoginPage(onLogin: (phone, shop, id, firstName, lastName, boutiqueModeEnabled) => setOwner(phone: phone, shopName: shop, id: id, firstName: firstName, lastName: lastName, boutiqueModeEnabled: boutiqueModeEnabled))
+              : HomePage(ownerPhone: ownerPhone!, ownerShopName: ownerShopName, onLogout: clearOwner, hasPinSet: cachedHasPinForReturning ?? false),
     );
   }
 }
@@ -171,8 +233,9 @@ class HomePage extends StatefulWidget {
   final String ownerPhone;
   final String? ownerShopName;
   final VoidCallback onLogout;
+  final bool hasPinSet;
 
-  const HomePage({super.key, required this.ownerPhone, this.ownerShopName, required this.onLogout});
+  const HomePage({super.key, required this.ownerPhone, this.ownerShopName, required this.onLogout, this.hasPinSet = false});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -744,7 +807,7 @@ class _HomePageState extends State<HomePage> {
         // Clé composite pour séparer PRÊTS et EMPRUNTS : "{clientId}|{type}"
         final Map<String, Map<String, dynamic>> debtsByKey = {};
 
-        double _tsForDebt(dynamic debt) {
+        double tsForDebt(dynamic debt) {
           if (debt == null) return 0.0;
           // Priorité aux champs de timestamp usuels
           final List<String> tsFields = ['updated_at', 'added_at', 'created_at', 'createdAt', 'date'];
@@ -775,7 +838,7 @@ class _HomePageState extends State<HomePage> {
           final type = (debt['type'] ?? 'debt').toString();
           final compKey = '${clientId.toString()}|$type';
           final remaining = (debt['remaining'] as num?)?.toDouble() ?? 0.0;
-          final ts = _tsForDebt(debt);
+          final ts = tsForDebt(debt);
 
           if (debtsByKey.containsKey(compKey)) {
             final existing = debtsByKey[compKey]!;
@@ -1179,9 +1242,9 @@ double _clientTotalRemaining(dynamic clientId) {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Text(
+                    child: const Text(
                       'Ajouter',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -1207,7 +1270,7 @@ double _clientTotalRemaining(dynamic clientId) {
       }
       return;
     }
-    Widget _actionCard({
+    Widget actionCard({
   required bool isDark,
   required IconData icon,
   required Color color,
@@ -1661,9 +1724,9 @@ final choice = await showModalBottomSheet<String>(
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.trending_up, size: 14, color: Colors.orange),
+                                          const Icon(Icons.trending_up, size: 14, color: Colors.orange),
                                           const SizedBox(width: 6),
-                                          Text(
+                                          const Text(
                                             'PRÊTS',
                                             style: TextStyle(
                                               fontSize: 11,
@@ -1736,9 +1799,9 @@ final choice = await showModalBottomSheet<String>(
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.trending_down, size: 14, color: Colors.purple),
+                                          const Icon(Icons.trending_down, size: 14, color: Colors.purple),
                                           const SizedBox(width: 6),
-                                          Text(
+                                          const Text(
                                             'EMPRUNTS',
                                             style: TextStyle(
                                               fontSize: 11,
@@ -2114,7 +2177,7 @@ final choice = await showModalBottomSheet<String>(
           final txType = parts.length > 1 ? parts[1] : 'debt';
           final dynamic clientId = clientIdPart == 'unknown' ? 'unknown' : (int.tryParse(clientIdPart) ?? clientIdPart);
           final client = clients.firstWhere((x) => x['id'] == clientId, orElse: () => null);
-          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? (AppSettings().boutiqueModeEnabled ? 'Clients inconnus' : 'Contacts inconnus') : (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact') + ' $clientId');
+          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? (AppSettings().boutiqueModeEnabled ? 'Clients inconnus' : 'Contacts inconnus') : '${AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact'} $clientId');
 
           // Calculer le total : ne prendre que la dette la plus récente pour le couple (client,type)
           double totalRemaining = 0.0;
@@ -3119,7 +3182,8 @@ final choice = await showModalBottomSheet<String>(
                               ),
                               const PopupMenuItem(value: 'team', child: Text('Équipe')),
                               const PopupMenuItem(value: 'settings', child: Text('Paramètres')),
-                              const PopupMenuItem(value: 'logout', child: Text('Déconnexion')),
+                              if (widget.hasPinSet)
+                                const PopupMenuItem(value: 'logout', child: Text('Déconnexion')),
                             ],
                             icon: const Icon(
                               Icons.more_vert,

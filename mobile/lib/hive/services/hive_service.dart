@@ -385,11 +385,36 @@ class HiveService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final clients = (data['data'] as List?)
-                ?.map((c) => HiveClient.fromJson(c))
-                .toList() ??
-            [];
+        final decodedData = jsonDecode(response.body);
+        
+        // Handle both direct list and wrapped list in 'data' field
+        List<dynamic> clientsList;
+        if (decodedData is List) {
+          clientsList = decodedData;
+        } else if (decodedData is Map && decodedData.containsKey('data')) {
+          final dataField = decodedData['data'];
+          if (dataField is List) {
+            clientsList = dataField;
+          } else {
+            print('Unexpected data format for clients: $dataField');
+            return;
+          }
+        } else {
+          print('Unexpected response format for clients: $decodedData');
+          return;
+        }
+        
+        final clients = clientsList
+            .map((c) {
+              try {
+                return HiveClient.fromJson(c as Map<String, dynamic>);
+              } catch (e) {
+                print('Error parsing client: $c, Error: $e');
+                return null;
+              }
+            })
+            .whereType<HiveClient>()
+            .toList();
 
         for (final serverClient in clients) {
           final localClient = getClient(serverClient.id);
@@ -423,11 +448,36 @@ class HiveService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final debts = (data['data'] as List?)
-                ?.map((d) => HiveDebt.fromJson(d))
-                .toList() ??
-            [];
+        final decodedData = jsonDecode(response.body);
+        
+        // Handle both direct list and wrapped list in 'data' field
+        List<dynamic> debtsList;
+        if (decodedData is List) {
+          debtsList = decodedData;
+        } else if (decodedData is Map && decodedData.containsKey('data')) {
+          final dataField = decodedData['data'];
+          if (dataField is List) {
+            debtsList = dataField;
+          } else {
+            print('Unexpected data format for debts: $dataField');
+            return;
+          }
+        } else {
+          print('Unexpected response format for debts: $decodedData');
+          return;
+        }
+        
+        final debts = debtsList
+            .map((d) {
+              try {
+                return HiveDebt.fromJson(d as Map<String, dynamic>);
+              } catch (e) {
+                print('Error parsing debt: $d, Error: $e');
+                return null;
+              }
+            })
+            .whereType<HiveDebt>()
+            .toList();
 
         for (final serverDebt in debts) {
           final localDebt = getDebt(serverDebt.id);
@@ -461,11 +511,36 @@ class HiveService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final payments = (data['data'] as List?)
-                ?.map((p) => HivePayment.fromJson(p))
-                .toList() ??
-            [];
+        final decodedData = jsonDecode(response.body);
+        
+        // Handle both direct list and wrapped list in 'data' field
+        List<dynamic> paymentsList;
+        if (decodedData is List) {
+          paymentsList = decodedData;
+        } else if (decodedData is Map && decodedData.containsKey('data')) {
+          final dataField = decodedData['data'];
+          if (dataField is List) {
+            paymentsList = dataField;
+          } else {
+            print('Unexpected data format for payments: $dataField');
+            return;
+          }
+        } else {
+          print('Unexpected response format for payments: $decodedData');
+          return;
+        }
+
+        final payments = paymentsList
+            .map((p) {
+              try {
+                return HivePayment.fromJson(p as Map<String, dynamic>);
+              } catch (e) {
+                print('Error parsing payment: $p, Error: $e');
+                return null;
+              }
+            })
+            .whereType<HivePayment>()
+            .toList();
 
         for (final serverPayment in payments) {
           HivePayment? localPayment;
@@ -506,11 +581,36 @@ class HiveService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final additions = (data['data'] as List?)
-                ?.map((a) => HiveDebtAddition.fromJson(a))
-                .toList() ??
-            [];
+        final decodedData = jsonDecode(response.body);
+        
+        // Handle both direct list and wrapped list in 'data' field
+        List<dynamic> additionsList;
+        if (decodedData is List) {
+          additionsList = decodedData;
+        } else if (decodedData is Map && decodedData.containsKey('data')) {
+          final dataField = decodedData['data'];
+          if (dataField is List) {
+            additionsList = dataField;
+          } else {
+            print('Unexpected data format for additions: $dataField');
+            return;
+          }
+        } else {
+          print('Unexpected response format for additions: $decodedData');
+          return;
+        }
+        
+        final additions = additionsList
+            .map((a) {
+              try {
+                return HiveDebtAddition.fromJson(a as Map<String, dynamic>);
+              } catch (e) {
+                print('Error parsing addition: $a, Error: $e');
+                return null;
+              }
+            })
+            .whereType<HiveDebtAddition>()
+            .toList();
 
         for (final serverAddition in additions) {
           HiveDebtAddition? localAddition;

@@ -976,7 +976,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
           controller: _tabController,
           tabs: [
             Tab(text: isPret ? 'PRÊT' : 'EMPRUNT'),
-            Tab(text: 'DÉTAILS'),
+            const Tab(text: 'DÉTAILS'),
           ],
           labelColor: isPret ? Colors.orange : Colors.purple,
           unselectedLabelColor: textColorSecondary,
@@ -1217,14 +1217,14 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                   border: Border.all(color: Colors.green.withOpacity(0.3)),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Remboursement complet ✓',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.green,

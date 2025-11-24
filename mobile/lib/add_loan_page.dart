@@ -26,7 +26,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
   bool _saving = false;
   late AudioService _audioService;
   String? _audioPath;
-  bool _isRecording = false;
+  final bool _isRecording = false;
   final List<double> _recentAmounts = [];
   double _displayAmount = 0.0;
 
@@ -444,7 +444,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning, size: 24, color: Colors.purple),
+                  const Icon(Icons.warning, size: 24, color: Colors.purple),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -470,7 +470,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Ce client a déjà une DETTE.',
                       style: TextStyle(
                         fontSize: 13,
@@ -599,13 +599,13 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: subtleAccent,
                                 shape: BoxShape.circle,
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
+                            const Text(
                               'EMPRUNT',
                               style: TextStyle(
                                 fontSize: 9,
@@ -771,7 +771,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                                         ),
                                         child: Text(
                                           NumberFormat('#,###', 'fr_FR').format(amount),
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w500,
                                             color: subtleAccent,
@@ -809,7 +809,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                                   children: [
                                     Expanded(
                                       child: DropdownButtonFormField<int>(
-                                        value: _clientId,
+                                        initialValue: _clientId,
                                         isExpanded: true,
                                         style: TextStyle(
                                           fontSize: 14,
@@ -870,11 +870,11 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.calendar_today, size: 14, color: subtleAccent),
+                                    const Icon(Icons.calendar_today, size: 14, color: subtleAccent),
                                     const SizedBox(width: 8),
                                     Text(
                                       _due == null ? 'DATE DE REMBOURSEMENT' : DateFormat('dd/MM/yyyy').format(_due!),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                         color: subtleAccent,
@@ -929,8 +929,8 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (_saving)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 10),
+                              const Padding(
+                                padding: EdgeInsets.only(right: 10),
                                 child: SizedBox(
                                   height: 14,
                                   width: 14,
@@ -941,13 +941,13 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
                                 ),
                               )
                             else
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8),
                                 child: Icon(Icons.account_balance_wallet, size: 18, color: subtleAccent),
                               ),
                             Text(
                               _saving ? 'CRÉATION...' : 'EMPRUNTER',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 letterSpacing: 1.2,

@@ -79,6 +79,282 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showMinimalSnackbar('Taux enregistrés');
   }
 
+  // Complete profile - for users who signed up with quick signup (just phone)
+  void _showCompleteProfileDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
+    final borderColor = isDark ? Colors.white24 : Colors.black26;
+
+    final firstNameCtl = TextEditingController(text: _firstNameCtl.text);
+    final lastNameCtl = TextEditingController(text: _lastNameCtl.text);
+    final pinCtl = TextEditingController();
+    final shopNameCtl = TextEditingController(text: _shopNameCtl.text);
+    
+    bool showPin = false;
+    bool isLoading = false;
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return Dialog(
+            backgroundColor: Theme.of(context).cardColor,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 500),
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'COMPLÉTER VOTRE PROFIL',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ajoutez votre nom et configurez un PIN pour sécuriser votre compte',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w300,
+                        color: textColorSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // First name
+                    TextField(
+                      controller: firstNameCtl,
+                      style: TextStyle(color: textColor, fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Prénom',
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: textColorSecondary,
+                        ),
+                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: borderColor, width: 0.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: textColor, width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Last name
+                    TextField(
+                      controller: lastNameCtl,
+                      style: TextStyle(color: textColor, fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Nom',
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: textColorSecondary,
+                        ),
+                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: borderColor, width: 0.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: textColor, width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Shop name (optional)
+                    TextField(
+                      controller: shopNameCtl,
+                      style: TextStyle(color: textColor, fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: 'Nom boutique (optionnel)',
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: textColorSecondary,
+                        ),
+                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: borderColor, width: 0.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: textColor, width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // PIN (optional)
+                    Text(
+                      'PIN OPTIONNEL (4 chiffres)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                        color: textColorSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: pinCtl,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      obscureText: !showPin,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 8),
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: borderColor, width: 0.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: textColor, width: 1),
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                        counterText: '',
+                        suffixIcon: IconButton(
+                          icon: Icon(showPin ? Icons.visibility : Icons.visibility_off, size: 20),
+                          onPressed: () {
+                            setDialogState(() => showPin = !showPin);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              disabledBackgroundColor: Colors.grey.withAlpha(128),
+                            ),
+                            child: const Text('Annuler'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : () async {
+                              setDialogState(() => isLoading = true);
+                              await _completeProfile(
+                                dialogContext,
+                                firstNameCtl.text,
+                                lastNameCtl.text,
+                                shopNameCtl.text,
+                                pinCtl.text,
+                              );
+                              if (ctx.mounted) {
+                                setDialogState(() => isLoading = false);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? Colors.white : Colors.black,
+                              disabledBackgroundColor: isDark ? Colors.white24 : Colors.black26,
+                            ),
+                            child: Text(
+                              isLoading ? 'CHARGEMENT...' : 'ENREGISTRER',
+                              style: TextStyle(color: isDark ? Colors.black : Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _completeProfile(BuildContext ctx, String firstName, String lastName, String shopName, String pin) async {
+    if (firstName.isEmpty || lastName.isEmpty) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Le prénom et le nom sont obligatoires')),
+      );
+      return;
+    }
+
+    // Validate PIN if provided
+    if (pin.isNotEmpty && (pin.length != 4 || !RegExp(r'^\d+$').hasMatch(pin))) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Le PIN doit contenir exactement 4 chiffres')),
+      );
+      return;
+    }
+
+    setState(() {});
+
+    try {
+      final body = {
+        'auth_token': _settings.authToken,
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
+        'shop_name': shopName.isEmpty ? null : shopName.trim(),
+        if (pin.isNotEmpty) 'pin': pin,
+      };
+
+      final res = await http.patch(
+        Uri.parse('$apiHost/auth/complete-profile'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+
+        // Update local storage
+        await _settings.setProfileInfo(
+          data['first_name'] ?? '',
+          data['last_name'] ?? '',
+          data['shop_name'] ?? '',
+        );
+
+        _firstNameCtl.text = data['first_name'] ?? '';
+        _lastNameCtl.text = data['last_name'] ?? '';
+        _shopNameCtl.text = data['shop_name'] ?? '';
+
+        if (mounted) {
+          Navigator.pop(ctx);
+          _showMinimalSnackbar('Profil complété avec succès !');
+          setState(() {});
+        }
+      } else {
+        final errorMsg = res.body.isNotEmpty ? json.decode(res.body)['error'] ?? 'Erreur serveur' : 'Erreur serveur';
+        if (mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text('Erreur: $errorMsg')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (_firstNameCtl.text.isEmpty || _lastNameCtl.text.isEmpty) {
       _showMinimalSnackbar('Le prénom et le nom sont obligatoires');
@@ -238,6 +514,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: Colors.white,
                         ),
                       ),
+                    ),
+                  ),
+                ),
+              // QUICK PROFILE COMPLETION SECTION (for users who did quick signup)
+              if ((_firstNameCtl.text.isEmpty || _lastNameCtl.text.isEmpty) && _settings.ownerPhone != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange, width: 1.5),
+                      borderRadius: BorderRadius.circular(4),
+                      color: (isDark ? Colors.orange.shade900 : Colors.orange.shade50).withAlpha(50),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Complétez votre profil',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Ajoutez votre nom et configurez un PIN pour sécuriser votre compte',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w300,
+                            color: textColorSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 45,
+                          child: ElevatedButton(
+                            onPressed: _showCompleteProfileDialog,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
+                            child: const Text(
+                              'COMPLÉTER MON PROFIL',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -281,9 +281,9 @@ class _PinAuthPageState extends State<PinAuthPage> {
                 child: const Text('Confirmer'),
               )
             else if (confirmPin.length == 4)
-              ElevatedButton(
+              const ElevatedButton(
                 onPressed: null,
-                child: const Text('PINs ne correspondent pas'),
+                child: Text('PINs ne correspondent pas'),
               ),
           ],
         ),

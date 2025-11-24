@@ -910,7 +910,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning, size: 24, color: Colors.orange),
+                  const Icon(Icons.warning, size: 24, color: Colors.orange),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -938,7 +938,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                   children: [
                     Text(
                       'Ce client a déjà ${newType == 'debt' ? 'un EMPRUNT' : 'une DETTE'}.',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.orange,
