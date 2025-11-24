@@ -312,6 +312,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
@@ -320,7 +321,7 @@ class _LoginPageState extends State<LoginPage> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: colors.background,
         appBar: AppBar(
           elevation: 0,
           backgroundColor: Colors.transparent,

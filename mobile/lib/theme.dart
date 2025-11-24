@@ -52,13 +52,13 @@ const Color kTextPrimary = Color(0xFFFFFFFF);      // Texte blanc pur
 const Color kTextSecondary = Color.fromARGB(255, 205, 203, 203);    // Texte gris clair
 
 // Light Theme Colors
-const Color kBackgroundLight = Color(0xFFFFFFFF);  // Blanc pur - background principal
-const Color kSurfaceLight = Color(0xFFFFFFFF);     // Blanc pur - cards/surfaces
-const Color kCardLight = Color(0xFFFFFFFF);        // Blanc pur - card background
+const Color kBackgroundLight = Color(0xFFF5F5F5);  // Gris très clair - background principal
+const Color kSurfaceLight = Color(0xFFFAFAFA);     // Gris ultra clair - cards/surfaces
+const Color kCardLight = Color(0xFFFAFAFA);        // Gris ultra clair - card background
 const Color kMutedLight = Color(0xFF666666);       // Gris foncé clair
-const Color kBorderLight = Color(0xFFCCCCCC);      // Bordure gris clair
-const Color kTextPrimaryLight = Color(0xFF000000); // Texte noir pur
-const Color kTextSecondaryLight = Color(0xFF333333); // Texte gris foncé
+const Color kBorderLight = Color(0xFFDDDDDD);      // Bordure gris moyen
+const Color kTextPrimaryLight = Color(0xFF1A1A1A); // Texte gris très foncé
+const Color kTextSecondaryLight = Color(0xFF4A4A4A); // Texte gris moyen
 
 // Typography - Style épuré
 const double kFontSizeXS = 12.0;

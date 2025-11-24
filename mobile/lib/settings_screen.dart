@@ -22,13 +22,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppSettings _settings = AppSettings();
-  final _eurCtl = TextEditingController();
-  final _usdCtl = TextEditingController();
-  final _firstNameCtl = TextEditingController();
-  final _lastNameCtl = TextEditingController();
-  final _shopNameCtl = TextEditingController();
-  late TextEditingController _phoneCtl;
-  bool _isSavingProfile = false;
   bool _boutiqueModeEnabled = false;
 
   String get apiHost {
@@ -42,12 +35,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _eurCtl.text = (_settings.rates['EUR'] ?? 655.957).toString();
-    _usdCtl.text = (_settings.rates['USD'] ?? 606.371).toString();
-    _firstNameCtl.text = _settings.firstName ?? '';
-    _lastNameCtl.text = _settings.lastName ?? '';
-    _shopNameCtl.text = _settings.shopName ?? '';
-    _phoneCtl = TextEditingController(text: _settings.ownerPhone ?? '');
     _boutiqueModeEnabled = _settings.boutiqueModeEnabled;
     _settings.addListener(_apply);
   }
@@ -57,319 +44,134 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _settings.removeListener(_apply);
-    _eurCtl.dispose();
-    _usdCtl.dispose();
-    _firstNameCtl.dispose();
-    _lastNameCtl.dispose();
-    _shopNameCtl.dispose();
-    _phoneCtl.dispose();
     super.dispose();
   }
 
-  Future<void> _saveRates() async {
-    final eur = double.tryParse(_eurCtl.text) ?? 655.957;
-    final usd = double.tryParse(_usdCtl.text) ?? 606.371;
-
-    final m = Map<String, double>.from(_settings.rates);
-    m['EUR'] = eur;
-    m['USD'] = usd;
-
-    await _settings.setRates(m);
-
-    _showMinimalSnackbar('Taux enregistrés');
-  }
-
-  // Complete profile - for users who signed up with quick signup (just phone)
-  void _showCompleteProfileDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
-    final borderColor = isDark ? Colors.white24 : Colors.black26;
-
-    final firstNameCtl = TextEditingController(text: _firstNameCtl.text);
-    final lastNameCtl = TextEditingController(text: _lastNameCtl.text);
-    final pinCtl = TextEditingController();
-    final shopNameCtl = TextEditingController(text: _shopNameCtl.text);
-    
-    bool showPin = false;
-    bool isLoading = false;
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          return Dialog(
-            backgroundColor: Theme.of(context).cardColor,
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 500),
-              padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'COMPLÉTER VOTRE PROFIL',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.5,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Ajoutez votre nom et configurez un PIN pour sécuriser votre compte',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w300,
-                        color: textColorSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // First name
-                    TextField(
-                      controller: firstNameCtl,
-                      style: TextStyle(color: textColor, fontSize: 15),
-                      decoration: InputDecoration(
-                        labelText: 'Prénom',
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: textColorSecondary,
-                        ),
-                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: borderColor, width: 0.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: textColor, width: 1),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Last name
-                    TextField(
-                      controller: lastNameCtl,
-                      style: TextStyle(color: textColor, fontSize: 15),
-                      decoration: InputDecoration(
-                        labelText: 'Nom',
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: textColorSecondary,
-                        ),
-                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: borderColor, width: 0.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: textColor, width: 1),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Shop name (optional)
-                    TextField(
-                      controller: shopNameCtl,
-                      style: TextStyle(color: textColor, fontSize: 15),
-                      decoration: InputDecoration(
-                        labelText: 'Nom boutique (optionnel)',
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: textColorSecondary,
-                        ),
-                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: borderColor, width: 0.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: textColor, width: 1),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // PIN (optional)
-                    Text(
-                      'PIN OPTIONNEL (4 chiffres)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.5,
-                        color: textColorSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: pinCtl,
-                      keyboardType: TextInputType.number,
-                      maxLength: 4,
-                      obscureText: !showPin,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor, letterSpacing: 8),
-                      decoration: InputDecoration(
-                        border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: borderColor, width: 0.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: textColor, width: 1),
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                        counterText: '',
-                        suffixIcon: IconButton(
-                          icon: Icon(showPin ? Icons.visibility : Icons.visibility_off, size: 20),
-                          onPressed: () {
-                            setDialogState(() => showPin = !showPin);
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : () => Navigator.pop(ctx),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey,
-                              disabledBackgroundColor: Colors.grey.withAlpha(128),
-                            ),
-                            child: const Text('Annuler'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : () async {
-                              setDialogState(() => isLoading = true);
-                              await _completeProfile(
-                                dialogContext,
-                                firstNameCtl.text,
-                                lastNameCtl.text,
-                                shopNameCtl.text,
-                                pinCtl.text,
-                              );
-                              if (ctx.mounted) {
-                                setDialogState(() => isLoading = false);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDark ? Colors.white : Colors.black,
-                              disabledBackgroundColor: isDark ? Colors.white24 : Colors.black26,
-                            ),
-                            child: Text(
-                              isLoading ? 'CHARGEMENT...' : 'ENREGISTRER',
-                              style: TextStyle(color: isDark ? Colors.black : Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+  void _showMinimalSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Colors.black,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Future<void> _completeProfile(BuildContext ctx, String firstName, String lastName, String shopName, String pin) async {
-    if (firstName.isEmpty || lastName.isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Le prénom et le nom sont obligatoires')),
-      );
-      return;
-    }
+  void _showProfileSheet() {
+    final colors = Theme.of(context).colorScheme;
+    
+    final firstNameCtl = TextEditingController(text: _settings.firstName ?? '');
+    final lastNameCtl = TextEditingController(text: _settings.lastName ?? '');
+    final shopNameCtl = TextEditingController(text: _settings.shopName ?? '');
+    bool isLoading = false;
 
-    // Validate PIN if provided
-    if (pin.isNotEmpty && (pin.length != 4 || !RegExp(r'^\d+$').hasMatch(pin))) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Le PIN doit contenir exactement 4 chiffres')),
-      );
-      return;
-    }
-
-    setState(() {});
-
-    try {
-      final body = {
-        'auth_token': _settings.authToken,
-        'first_name': firstName.trim(),
-        'last_name': lastName.trim(),
-        'shop_name': shopName.isEmpty ? null : shopName.trim(),
-        if (pin.isNotEmpty) 'pin': pin,
-      };
-
-      final res = await http.patch(
-        Uri.parse('$apiHost/auth/complete-profile'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 8));
-
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-
-        // Update local storage
-        await _settings.setProfileInfo(
-          data['first_name'] ?? '',
-          data['last_name'] ?? '',
-          data['shop_name'] ?? '',
-        );
-
-        _firstNameCtl.text = data['first_name'] ?? '';
-        _lastNameCtl.text = data['last_name'] ?? '';
-        _shopNameCtl.text = data['shop_name'] ?? '';
-
-        if (mounted) {
-          Navigator.pop(ctx);
-          _showMinimalSnackbar('Profil complété avec succès !');
-          setState(() {});
-        }
-      } else {
-        final errorMsg = res.body.isNotEmpty ? json.decode(res.body)['error'] ?? 'Erreur serveur' : 'Erreur serveur';
-        if (mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(content: Text('Erreur: $errorMsg')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Profil',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            TextField(
+              controller: firstNameCtl,
+              decoration: InputDecoration(
+                labelText: 'Prénom',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            TextField(
+              controller: lastNameCtl,
+              decoration: InputDecoration(
+                labelText: 'Nom',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            TextField(
+              controller: shopNameCtl,
+              decoration: InputDecoration(
+                labelText: 'Boutique (optionnel)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : () async {
+                  setState(() => isLoading = true);
+                  await _saveProfile(firstNameCtl.text, lastNameCtl.text, shopNameCtl.text);
+                  setState(() => isLoading = false);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Enregistrer'),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _saveProfile() async {
-    if (_firstNameCtl.text.isEmpty || _lastNameCtl.text.isEmpty) {
+  Future<void> _saveProfile(String firstName, String lastName, String shopName) async {
+    if (firstName.isEmpty || lastName.isEmpty) {
       _showMinimalSnackbar('Le prénom et le nom sont obligatoires');
       return;
     }
 
-    setState(() => _isSavingProfile = true);
-
     try {
-      // Update profile in backend
       final body = {
         'phone': _settings.ownerPhone,
-        'first_name': _firstNameCtl.text.trim(),
-        'last_name': _lastNameCtl.text.trim(),
-        'shop_name': _shopNameCtl.text.trim(),
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
+        'shop_name': shopName.trim(),
       };
       
       final headers = {
@@ -384,75 +186,365 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ).timeout(const Duration(seconds: 8));
 
       if (res.statusCode == 200) {
-        // Update local storage
-        await _settings.setProfileInfo(
-          _firstNameCtl.text,
-          _lastNameCtl.text,
-          _shopNameCtl.text,
-        );
-
-        if (mounted) {
-          _showMinimalSnackbar('Profil enregistré avec succès');
-        }
+        await _settings.setProfileInfo(firstName, lastName, shopName);
+        _showMinimalSnackbar('Profil enregistré avec succès');
       } else {
-        final errorMsg = res.body.isNotEmpty ? json.decode(res.body)['message'] ?? 'Erreur serveur' : 'Erreur serveur';
-        if (mounted) {
-          _showMinimalSnackbar('Erreur: $errorMsg');
-        }
+        _showMinimalSnackbar('Erreur lors de l\'enregistrement');
       }
     } catch (e) {
-      if (mounted) {
-        _showMinimalSnackbar('Erreur: $e');
-      }
-    } finally {
-      if (mounted) setState(() => _isSavingProfile = false);
+      _showMinimalSnackbar('Erreur: $e');
     }
   }
 
-  void _showMinimalSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.black,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-        margin: const EdgeInsets.all(20),
-        duration: const Duration(seconds: 2),
+  void _showPinSheet() {
+    final colors = Theme.of(context).colorScheme;
+    final pinCtl = TextEditingController();
+    bool showPin = false;
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.onSurface.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Configurer le PIN',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: colors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Définissez un code PIN à 4 chiffres pour sécuriser votre compte',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colors.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                TextField(
+                  controller: pinCtl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  obscureText: !showPin,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: colors.onSurface,
+                    letterSpacing: 8,
+                  ),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.all(16),
+                    counterText: '',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        showPin ? Icons.visibility : Icons.visibility_off,
+                        color: colors.onSurface.withOpacity(0.6),
+                      ),
+                      onPressed: () {
+                        setDialogState(() => showPin = !showPin);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : () async {
+                      if (pinCtl.text.length != 4 || !RegExp(r'^\d+$').hasMatch(pinCtl.text)) {
+                        _showMinimalSnackbar('Le PIN doit contenir exactement 4 chiffres');
+                        return;
+                      }
+                      
+                      setDialogState(() => isLoading = true);
+                      await _updatePin(pinCtl.text);
+                      setDialogState(() => isLoading = false);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    child: isLoading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Définir le PIN'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _updatePin(String pin) async {
+    try {
+      final body = {
+        'auth_token': _settings.authToken,
+        'pin': pin,
+      };
+
+      final res = await http.patch(
+        Uri.parse('$apiHost/auth/update-pin'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        _showMinimalSnackbar('PIN défini avec succès');
+      } else {
+        _showMinimalSnackbar('Erreur lors de la définition du PIN');
+      }
+    } catch (e) {
+      _showMinimalSnackbar('Erreur: $e');
+    }
+  }
+
+  void _showCurrencySheet() {
+    final colors = Theme.of(context).colorScheme;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Devise principale',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            _currencyOption('XOF', 'XOF'),
+            _currencyOption('EUR', 'EUR'),
+            _currencyOption('USD', 'USD'),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _currencyOption(String label, String value) {
+    final colors = Theme.of(context).colorScheme;
+    final isSelected = _settings.currency == value;
+    
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? colors.primary : colors.onSurface.withOpacity(0.5),
+      ),
+      title: Text(label, style: TextStyle(color: colors.onSurface)),
+      onTap: () {
+        _settings.setCurrency(value);
+        Navigator.pop(context);
+        _showMinimalSnackbar('Devise définie: $label');
+      },
+    );
+  }
+
+  void _showAppearanceSheet() {
+    final colors = Theme.of(context).colorScheme;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Apparence',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Thème
+            ListTile(
+              leading: Icon(Icons.brightness_6, color: colors.onSurface),
+              title: Text('Mode sombre', style: TextStyle(color: colors.onSurface)),
+              trailing: Switch(
+                value: !_settings.lightMode,
+                onChanged: (v) {
+                  _settings.setLightMode(!v);
+                  setState(() {});
+                },
+              ),
+            ),
+            
+            // Langue
+            ListTile(
+              leading: Icon(Icons.language, color: colors.onSurface),
+              title: Text('Langue', style: TextStyle(color: colors.onSurface)),
+              subtitle: Text(
+                _settings.locale == 'fr_FR' ? 'Français' : 'English',
+                style: TextStyle(color: colors.onSurface.withOpacity(0.6))
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showLanguageSheet();
+              },
+            ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageSheet() {
+    final colors = Theme.of(context).colorScheme;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.onSurface.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Langue',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.onSurface,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            _languageOption('Français', 'fr_FR'),
+            _languageOption('English', 'en_US'),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _languageOption(String label, String value) {
+    final colors = Theme.of(context).colorScheme;
+    final isSelected = _settings.locale == value;
+    
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: isSelected ? colors.primary : colors.onSurface.withOpacity(0.5),
+      ),
+      title: Text(label, style: TextStyle(color: colors.onSurface)),
+      onTap: () {
+        _settings.setLocale(value);
+        Navigator.pop(context);
+        _showMinimalSnackbar('Langue définie: $label');
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
-    final borderColor = isDark ? Colors.white24 : Colors.black26;
+    final colors = Theme.of(context).colorScheme;
+    final hasIncompleteProfile = _settings.firstName?.isEmpty == true || _settings.lastName?.isEmpty == true;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: Icon(Icons.close, color: textColor, size: 24),
+          icon: Icon(Icons.close, color: colors.onBackground, size: 24),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'PARAMÈTRES',
+          'Paramètres',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
-            letterSpacing: 2,
-            color: textColor,
+            color: colors.onBackground,
           ),
         ),
         centerTitle: true,
@@ -463,718 +555,217 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Bannière de profil incomplet
+              if (hasIncompleteProfile)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Complétez votre profil',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: colors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ajoutez votre nom pour personnaliser votre compte',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // STATISTIQUES BUTTON
               if (widget.debts != null && widget.clients != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Calculate total unpaid
-                        double totalUnpaid = 0;
-                        for (final d in widget.debts!) {
-                          final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
-                          double rem = amt;
-                          try {
-                            if (d != null && d['remaining'] != null) {
-                              rem = double.tryParse(d['remaining'].toString()) ?? rem;
-                            } else if (d != null && d['total_paid'] != null) {
-                              rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
-                            }
-                          } catch (_) {}
-                          if (rem > 0) totalUnpaid += rem;
+                _SettingsCard(
+                  title: 'Statistiques',
+                  subtitle: 'Analyse détaillée de vos données',
+                  icon: Icons.bar_chart_outlined,
+                  color: Colors.orange,
+                  onTap: () {
+                    double totalUnpaid = 0;
+                    for (final d in widget.debts!) {
+                      final amt = double.tryParse(d['amount']?.toString() ?? '0') ?? 0.0;
+                      double rem = amt;
+                      try {
+                        if (d != null && d['remaining'] != null) {
+                          rem = double.tryParse(d['remaining'].toString()) ?? rem;
+                        } else if (d != null && d['total_paid'] != null) {
+                          rem = amt - (double.tryParse(d['total_paid'].toString()) ?? 0.0);
                         }
+                      } catch (_) {}
+                      if (rem > 0) totalUnpaid += rem;
+                    }
 
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => StatsScreen(
-                              debts: widget.debts!,
-                              clients: widget.clients!,
-                              totalUnpaid: totalUnpaid,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      ),
-                      icon: const Icon(Icons.bar_chart_outlined, size: 20),
-                      label: const Text(
-                        'VOIR LES STATISTIQUES',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: Colors.white,
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => StatsScreen(
+                          debts: widget.debts!,
+                          clients: widget.clients!,
+                          totalUnpaid: totalUnpaid,
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              // QUICK PROFILE COMPLETION SECTION (for users who did quick signup)
-              if ((_firstNameCtl.text.isEmpty || _lastNameCtl.text.isEmpty) && _settings.ownerPhone != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.orange, width: 1.5),
-                      borderRadius: BorderRadius.circular(4),
-                      color: (isDark ? Colors.orange.shade900 : Colors.orange.shade50).withAlpha(50),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Complétez votre profil',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Ajoutez votre nom et configurez un PIN pour sécuriser votre compte',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w300,
-                            color: textColorSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 45,
-                          child: ElevatedButton(
-                            onPressed: _showCompleteProfileDialog,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            ),
-                            child: const Text(
-                              'COMPLÉTER MON PROFIL',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+
+              const SizedBox(height: 12),
+
               // PROFIL SECTION
-              Text(
-                'PROFIL',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
+              _SettingsCard(
+                title: 'Profil',
+                subtitle: _settings.firstName?.isNotEmpty == true 
+                    ? '${_settings.firstName} ${_settings.lastName}' 
+                    : 'Compléter votre profil',
+                icon: Icons.person_outline,
+                color: colors.primary,
+                onTap: _showProfileSheet,
+              ),
+
+              const SizedBox(height: 12),
+
+              // SÉCURITÉ (PIN)
+              _SettingsCard(
+                title: 'Sécurité',
+                subtitle: 'Configurer le code PIN',
+                icon: Icons.lock_outline,
+                color: Colors.red,
+                onTap: _showPinSheet,
+              ),
+
+              const SizedBox(height: 12),
+
+              // BOUTIQUE MODE
+              _SettingsCard(
+                title: 'Mode boutique',
+                subtitle: _boutiqueModeEnabled ? 'Activé - Gestion complète' : 'Désactivé - Gestion simple',
+                icon: Icons.storefront,
+                color: Colors.orange,
+                trailing: Switch(
+                  value: _boutiqueModeEnabled,
+                  onChanged: (val) async {
+                    setState(() => _boutiqueModeEnabled = val);
+                    await _settings.syncBoutiqueModeToServer(val);
+                    _showMinimalSnackbar(
+                      val ? 'Mode boutique activé' : 'Mode boutique désactivé',
+                    );
+                  },
                 ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'INFORMATIONS PERSONNELLES',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: textColorSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _firstNameCtl,
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        decoration: InputDecoration(
-                          labelText: 'Prénom',
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: textColorSecondary,
-                          ),
-                          border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: borderColor, width: 0.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: textColor, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _lastNameCtl,
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        decoration: InputDecoration(
-                          labelText: 'Nom',
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: textColorSecondary,
-                          ),
-                          border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: borderColor, width: 0.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: textColor, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _phoneCtl,
-                        readOnly: true,
-                        style: TextStyle(color: textColorSecondary, fontSize: 15),
-                        decoration: InputDecoration(
-                          labelText: 'Numéro de téléphone',
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: textColorSecondary,
-                          ),
-                          border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: borderColor, width: 0.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: textColorSecondary, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isSavingProfile ? null : _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? Colors.white : Colors.black,
-                            foregroundColor: isDark ? Colors.black : Colors.white,
-                            disabledBackgroundColor: isDark ? Colors.white24 : Colors.black26,
-                            disabledForegroundColor: isDark ? Colors.black38 : Colors.white54,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                          ),
-                          child: _isSavingProfile
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : Text(
-                                  'ENREGISTRER LE PROFIL',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.5,
-                                    color: isDark ? Colors.black : Colors.white,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+
+              const SizedBox(height: 12),
+
+              // APPARENCE
+              _SettingsCard(
+                title: 'Apparence',
+                subtitle: 'Thème, langue, personnalisation',
+                icon: Icons.palette_outlined,
+                color: Colors.purple,
+                onTap: _showAppearanceSheet,
+              ),
+
+              const SizedBox(height: 12),
+
+              // DEVISE
+              _SettingsCard(
+                title: 'Devise',
+                subtitle: _settings.currency,
+                icon: Icons.currency_exchange,
+                color: Colors.green,
+                onTap: _showCurrencySheet,
               ),
 
               const SizedBox(height: 32),
-
-              // 💎 MODE BOUTIQUE SECTION
-              Text(
-                'MODE BOUTIQUE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Activez le mode boutique pour accéder à la gestion complète des clients et des statistiques. Laissez-le désactivé pour une gestion simple des dettes.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: textColorSecondary,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'MODE BOUTIQUE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1,
-                              color: textColor,
-                            ),
-                          ),
-                          Switch(
-                            value: _boutiqueModeEnabled,
-                            onChanged: (val) async {
-                              setState(() => _boutiqueModeEnabled = val);
-                              await _settings.syncBoutiqueModeToServer(val);
-                              if (mounted) {
-                                _showMinimalSnackbar(
-                                  val ? 'Mode boutique activé' : 'Mode boutique désactivé',
-                                );
-                              }
-                            },
-                            activeThumbColor: Colors.orange,
-                            inactiveThumbColor: textColorSecondary,
-                          ),
-                        ],
-                      ),
-                      if (_boutiqueModeEnabled) ...[
-                        const SizedBox(height: 20),
-                        TextField(
-                          controller: _shopNameCtl,
-                          style: TextStyle(color: textColor, fontSize: 15),
-                          decoration: InputDecoration(
-                            labelText: 'Nom de la boutique',
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: textColorSecondary,
-                            ),
-                            border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: borderColor, width: 0.5),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: textColor, width: 1),
-                            ),
-                            contentPadding: const EdgeInsets.all(16),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 45,
-                          child: ElevatedButton(
-                            onPressed: _isSavingProfile ? null : () async {
-                              await _settings.setShopName(_shopNameCtl.text.trim());
-                              if (mounted) {
-                                _showMinimalSnackbar('Nom de boutique enregistré');
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange.withOpacity(0.1),
-                              foregroundColor: Colors.orange,
-                              disabledBackgroundColor: Colors.orange.withOpacity(0.05),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                side: BorderSide(color: Colors.orange.withOpacity(0.3), width: 0.5),
-                              ),
-                            ),
-                            child: const Text(
-                              'ENREGISTRER LE NOM',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.2,
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // APPARENCE SECTION
-              Text(
-                'APPARENCE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'THÈME',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: textColorSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _settings.lightMode ? 'MODE CLAIR' : 'MODE SOMBRE',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: textColor,
-                            ),
-                          ),
-                          Switch(
-                            value: _settings.lightMode,
-                            onChanged: (v) => _settings.setLightMode(v),
-                            activeThumbColor: isDark ? Colors.white : Colors.black,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // LANGUE SECTION
-              Text(
-                'LANGUE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'LANGUE DE L\'APPLICATION',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: textColorSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Actuelle : ${_settings.locale.toUpperCase()}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _languageButton('FRANÇAIS', 'fr_FR'),
-                          const SizedBox(width: 12),
-                          _languageButton('ENGLISH', 'en_US'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // DEVISE SECTION
-              Text(
-                'DEVISE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DEVISE PRINCIPALE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: textColorSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Actuelle : ${_settings.currency}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _currencyButton('XOF', 'XOF'),
-                          const SizedBox(width: 12),
-                          _currencyButton('EUR', 'EUR'),
-                          const SizedBox(width: 12),
-                          _currencyButton('USD', 'USD'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // TAUX DE CHANGE SECTION
-              Text(
-                'TAUX DE CHANGE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColorSecondary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'CONVERSION DE DEVISES',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5,
-                          color: textColorSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _eurCtl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        decoration: InputDecoration(
-                          labelText: '1 EUR = ? XOF',
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: textColorSecondary,
-                          ),
-                          border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: borderColor, width: 0.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: textColor, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _usdCtl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        style: TextStyle(color: textColor, fontSize: 15),
-                        decoration: InputDecoration(
-                          labelText: '1 USD = ? XOF',
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: textColorSecondary,
-                          ),
-                          border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: borderColor, width: 0.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: textColor, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.all(16),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _saveRates,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? Colors.white : Colors.black,
-                            foregroundColor: isDark ? Colors.black : Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                          ),
-                          child: Text(
-                            'ENREGISTRER LES TAUX',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.5,
-                              color: isDark ? Colors.black : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _languageButton(String label, String value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final isSelected = _settings.locale == value;
+class _SettingsCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _SettingsCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     
-    return Expanded(
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? textColor : Theme.of(context).dividerColor,
-            width: isSelected ? 1 : 0.5,
-          ),
-        ),
-        child: TextButton(
-          onPressed: () => _settings.setLocale(value),
-          style: TextButton.styleFrom(
-            foregroundColor: textColor,
-            padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: textColor,
-            ),
-          ),
-        ),
+    return Card(
+      color: colors.surface,
+      elevation: 1,
+      shadowColor: colors.shadow.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-
-  Widget _currencyButton(String label, String value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final isSelected = _settings.currency == value;
-    
-    return Expanded(
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? textColor : Theme.of(context).dividerColor,
-            width: isSelected ? 1 : 0.5,
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: colors.onSurface,
           ),
         ),
-        child: TextButton(
-          onPressed: () => _settings.setCurrency(value),
-          style: TextButton.styleFrom(
-            foregroundColor: textColor,
-            padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: textColor,
-            ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 14,
+            color: colors.onSurface.withOpacity(0.6),
           ),
         ),
+        trailing: trailing ?? Icon(
+          Icons.chevron_right, 
+          color: colors.onSurface.withOpacity(0.4),
+          size: 20,
+        ),
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }

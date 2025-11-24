@@ -269,6 +269,8 @@ class HivePayment {
   final String? syncError;
   final int localVersion;
   final int serverVersion;
+  final String? operationType;  // ✅ NOUVEAU: 'payment', 'loan_payment'
+  final String? debtType;        // ✅ NOUVEAU: 'debt' ou 'loan'
 
   HivePayment({
     required this.id,
@@ -283,24 +285,35 @@ class HivePayment {
     this.syncError,
     this.localVersion = 0,
     this.serverVersion = 0,
+    this.operationType,
+    this.debtType,
   });
 
-  factory HivePayment.fromJson(Map<String, dynamic> json) => HivePayment(
-        id: _parseId(json['id']),
-        debtId: _parseId(json['debt_id']),
-        amount: _parseAmount(json['amount']),
-        paidAt: DateTime.parse(json['paid_at'] as String),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-        ownerPhone: json['owner_phone'] as String,
-        needsSync: json['needsSync'] as bool? ?? false,
-        lastSyncAt: json['lastSyncAt'] != null
-            ? DateTime.parse(json['lastSyncAt'] as String)
-            : null,
-        syncError: json['syncError'] as String?,
-        localVersion: json['localVersion'] as int? ?? 0,
-        serverVersion: json['serverVersion'] as int? ?? 0,
-      );
+  factory HivePayment.fromJson(Map<String, dynamic> json) {
+    final paidAt = DateTime.parse(json['paid_at'] as String);
+    return HivePayment(
+      id: _parseId(json['id']),
+      debtId: _parseId(json['debt_id']),
+      amount: _parseAmount(json['amount']),
+      paidAt: paidAt,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : paidAt,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : paidAt,
+      ownerPhone: json['owner_phone'] as String? ?? '',
+      needsSync: json['needsSync'] as bool? ?? false,
+      lastSyncAt: json['lastSyncAt'] != null
+          ? DateTime.parse(json['lastSyncAt'] as String)
+          : null,
+      syncError: json['syncError'] as String?,
+      localVersion: json['localVersion'] as int? ?? 0,
+      serverVersion: json['serverVersion'] as int? ?? 0,
+      operationType: json['operation_type'] as String?,
+      debtType: json['debt_type'] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -315,6 +328,8 @@ class HivePayment {
         'syncError': syncError,
         'localVersion': localVersion,
         'serverVersion': serverVersion,
+        'operation_type': operationType,
+        'debt_type': debtType,
       };
 
   Map<String, dynamic> toServerJson() => {
@@ -322,6 +337,8 @@ class HivePayment {
         'debt_id': debtId,
         'amount': amount,
         'paid_at': paidAt.toIso8601String(),
+        'operation_type': operationType,
+        'debt_type': debtType,
       };
 
   HivePayment copyWith({
@@ -337,6 +354,8 @@ class HivePayment {
     String? syncError,
     int? localVersion,
     int? serverVersion,
+    String? operationType,
+    String? debtType,
   }) =>
       HivePayment(
         id: id ?? this.id,
@@ -351,6 +370,8 @@ class HivePayment {
         syncError: syncError ?? this.syncError,
         localVersion: localVersion ?? this.localVersion,
         serverVersion: serverVersion ?? this.serverVersion,
+        operationType: operationType ?? this.operationType,
+        debtType: debtType ?? this.debtType,
       );
 }
 
@@ -367,6 +388,8 @@ class HiveDebtAddition {
   final String? syncError;
   final int localVersion;
   final int serverVersion;
+  final String? operationType;  // ✅ NOUVEAU: 'addition', 'loan_addition'
+  final String? debtType;        // ✅ NOUVEAU: 'debt' ou 'loan'
 
   HiveDebtAddition({
     required this.id,
@@ -381,25 +404,35 @@ class HiveDebtAddition {
     this.syncError,
     this.localVersion = 0,
     this.serverVersion = 0,
+    this.operationType,
+    this.debtType,
   });
 
-  factory HiveDebtAddition.fromJson(Map<String, dynamic> json) =>
-      HiveDebtAddition(
-        id: _parseId(json['id']),
-        debtId: _parseId(json['debt_id']),
-        amount: _parseAmount(json['amount']),
-        addedAt: DateTime.parse(json['added_at'] as String),
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-        ownerPhone: json['owner_phone'] as String,
-        needsSync: json['needsSync'] as bool? ?? false,
-        lastSyncAt: json['lastSyncAt'] != null
-            ? DateTime.parse(json['lastSyncAt'] as String)
-            : null,
-        syncError: json['syncError'] as String?,
-        localVersion: json['localVersion'] as int? ?? 0,
-        serverVersion: json['serverVersion'] as int? ?? 0,
-      );
+  factory HiveDebtAddition.fromJson(Map<String, dynamic> json) {
+    final addedAt = DateTime.parse(json['added_at'] as String);
+    return HiveDebtAddition(
+      id: _parseId(json['id']),
+      debtId: _parseId(json['debt_id']),
+      amount: _parseAmount(json['amount']),
+      addedAt: addedAt,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : addedAt,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : addedAt,
+      ownerPhone: json['owner_phone'] as String? ?? '',
+      needsSync: json['needsSync'] as bool? ?? false,
+      lastSyncAt: json['lastSyncAt'] != null
+          ? DateTime.parse(json['lastSyncAt'] as String)
+          : null,
+      syncError: json['syncError'] as String?,
+      localVersion: json['localVersion'] as int? ?? 0,
+      serverVersion: json['serverVersion'] as int? ?? 0,
+      operationType: json['operation_type'] as String?,
+      debtType: json['debt_type'] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -414,6 +447,8 @@ class HiveDebtAddition {
         'syncError': syncError,
         'localVersion': localVersion,
         'serverVersion': serverVersion,
+        'operation_type': operationType,
+        'debt_type': debtType,
       };
 
   Map<String, dynamic> toServerJson() => {
@@ -421,6 +456,8 @@ class HiveDebtAddition {
         'debt_id': debtId,
         'amount': amount,
         'added_at': addedAt.toIso8601String(),
+        'operation_type': operationType,
+        'debt_type': debtType,
       };
 
   HiveDebtAddition copyWith({
@@ -436,6 +473,8 @@ class HiveDebtAddition {
     String? syncError,
     int? localVersion,
     int? serverVersion,
+    String? operationType,
+    String? debtType,
   }) =>
       HiveDebtAddition(
         id: id ?? this.id,
@@ -450,6 +489,8 @@ class HiveDebtAddition {
         syncError: syncError ?? this.syncError,
         localVersion: localVersion ?? this.localVersion,
         serverVersion: serverVersion ?? this.serverVersion,
+        operationType: operationType ?? this.operationType,
+        debtType: debtType ?? this.debtType,
       );
 }
 

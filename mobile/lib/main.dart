@@ -3018,11 +3018,13 @@ final choice = await showModalBottomSheet<String>(
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(_isSearching ? 130 : 60),
         child: Container(

@@ -159,7 +159,9 @@ class _PinLoginPageState extends State<PinLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

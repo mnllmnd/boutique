@@ -326,6 +326,12 @@ class HiveService {
 
       switch (operation.operationType) {
         case 'create':
+          // ✅ Cas spécial pour les paiements et additions
+          if (operation.entityType == 'payment') {
+            return await _createPaymentRemote(operation.payload, headers);
+          } else if (operation.entityType == 'addition') {
+            return await _createAdditionRemote(operation.payload, headers);
+          }
           return await _createRemote(
             operation.entityType,
             operation.payload,
@@ -349,6 +355,66 @@ class HiveService {
       }
     } catch (e) {
       print('Error executing sync operation: $e');
+      return false;
+    }
+  }
+
+  /// Crée un paiement via l'endpoint /debts/:id/pay
+  Future<bool> _createPaymentRemote(
+    Map<dynamic, dynamic> payload,
+    Map<String, String> headers,
+  ) async {
+    try {
+      final debtId = payload['debt_id'];
+      if (debtId == null) {
+        print('Error: payment missing debt_id');
+        return false;
+      }
+
+      // Utiliser le bon endpoint: /debts/{debtId}/pay
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/debts/$debtId/pay'),
+        headers: headers,
+        body: jsonEncode({
+          'amount': payload['amount'],
+          'paid_at': payload['paid_at'],
+          'notes': payload['notes'],
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      print('Error creating payment remote: $e');
+      return false;
+    }
+  }
+
+  /// Crée une addition via l'endpoint /debts/:id/add
+  Future<bool> _createAdditionRemote(
+    Map<dynamic, dynamic> payload,
+    Map<String, String> headers,
+  ) async {
+    try {
+      final debtId = payload['debt_id'];
+      if (debtId == null) {
+        print('Error: addition missing debt_id');
+        return false;
+      }
+
+      // Utiliser le bon endpoint: /debts/{debtId}/add
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/debts/$debtId/add'),
+        headers: headers,
+        body: jsonEncode({
+          'amount': payload['amount'],
+          'added_at': payload['added_at'],
+          'notes': payload['notes'],
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      print('Error creating addition remote: $e');
       return false;
     }
   }

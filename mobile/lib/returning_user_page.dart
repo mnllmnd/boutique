@@ -218,11 +218,12 @@ class _ReturningUserPageState extends State<ReturningUserPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,

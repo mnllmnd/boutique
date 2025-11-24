@@ -169,13 +169,14 @@ class _AddPaymentPageState extends State<AddPaymentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
     final borderColor = isDark ? Colors.white24 : Colors.black26;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,

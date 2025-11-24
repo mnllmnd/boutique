@@ -538,6 +538,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
@@ -546,7 +547,7 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
     const subtleAccent = Color.fromARGB(255, 141, 47, 219); // Violet pour les emprunts
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(140),
         child: Container(

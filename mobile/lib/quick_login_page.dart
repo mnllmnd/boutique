@@ -337,82 +337,84 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
-              
-              // Header
-              Icon(Icons.account_balance_wallet, size: 48, color: colors.primary),
-              const SizedBox(height: 16),
-              Text('Gestion de Dettes', style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.onBackground,
-              )),
-              const SizedBox(height: 8),
-              Text('Inscription rapide', style: TextStyle(
-                fontSize: 14,
-                color: colors.onBackground.withOpacity(0.6),
-              )),
-              const SizedBox(height: 40),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 12),
+                
+                // Header
+                Icon(Icons.account_balance_wallet, size: 48, color: colors.primary),
+                const SizedBox(height: 12),
+                Text('Gestion de Dettes', style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colors.onBackground,
+                )),
+                const SizedBox(height: 4),
+                Text('Inscription rapide', style: TextStyle(
+                  fontSize: 14,
+                  color: colors.onBackground.withOpacity(0.6),
+                )),
+                const SizedBox(height: 28),
 
-              // Phone Input
-              TextField(
-                controller: phoneCtl,
-                keyboardType: TextInputType.phone,
-                style: TextStyle(fontSize: 16, color: colors.onBackground),
-                decoration: InputDecoration(
-                  labelText: 'Numéro de téléphone',
-                  hintText: '77 123 45 67',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Continue Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: loading ? null : _doQuickSignup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    disabledBackgroundColor: colors.primary.withOpacity(0.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                // Phone Input
+                TextField(
+                  controller: phoneCtl,
+                  keyboardType: TextInputType.phone,
+                  style: TextStyle(fontSize: 16, color: colors.onBackground),
+                  decoration: InputDecoration(
+                    labelText: 'Numéro de téléphone',
+                    hintText: '77 123 45 67',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  child: loading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text('Continuer', style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: colors.onPrimary,
-                        )),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-              // Benefits
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.outline.withOpacity(0.3)),
+                // Continue Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: loading ? null : _doQuickSignup,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      disabledBackgroundColor: colors.primary.withOpacity(0.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: loading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text('Continuer', style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.onPrimary,
+                          )),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildBenefit('✓ Accès immédiat à l\'app'),
-                    _buildBenefit('✓ Créer dettes et clients'),
-                    _buildBenefit('✓ Profil complétable plus tard'),
-                  ],
+                const SizedBox(height: 16),
+
+                // Benefits
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.outline.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBenefit('✓ Accès immédiat à l\'app'),
+                      _buildBenefit('✓ Créer dettes et clients'),
+                      _buildBenefit('✓ Profil complétable plus tard'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

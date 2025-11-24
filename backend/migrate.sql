@@ -102,3 +102,68 @@ END$$;
 
 -- Add temp_token column for PIN verification
 ALTER TABLE owners ADD COLUMN IF NOT EXISTS temp_token VARCHAR(255);
+
+-- ✅ Migration 012: Add operation_type to debt_additions for better traceability
+ALTER TABLE debt_additions 
+ADD COLUMN IF NOT EXISTS operation_type VARCHAR(50) DEFAULT 'addition';
+
+ALTER TABLE debt_additions 
+ADD COLUMN IF NOT EXISTS debt_type VARCHAR(50);
+
+-- Update existing records to have correct operation_type based on the debt type
+UPDATE debt_additions da
+SET debt_type = d.type,
+    operation_type = CASE 
+      WHEN d.type = 'loan' THEN 'loan_addition'
+      ELSE 'addition'
+    END
+FROM debts d
+WHERE da.debt_id = d.id AND da.operation_type = 'addition';
+
+CREATE INDEX IF NOT EXISTS idx_debt_additions_operation_type ON debt_additions(operation_type);
+CREATE INDEX IF NOT EXISTS idx_debt_additions_debt_type ON debt_additions(debt_type);
+
+-- ✅ Migration 013: Add operation_type and debt_type to payments table for better traceability
+ALTER TABLE payments 
+ADD COLUMN IF NOT EXISTS operation_type VARCHAR(50) DEFAULT 'payment';
+
+ALTER TABLE payments 
+ADD COLUMN IF NOT EXISTS debt_type VARCHAR(50);
+
+-- Update existing records to have correct operation_type based on the debt type
+UPDATE payments p
+SET debt_type = d.type,
+    operation_type = CASE 
+      WHEN d.type = 'loan' THEN 'loan_payment'
+      ELSE 'payment'
+    END
+FROM debts d
+WHERE p.debt_id = d.id AND p.operation_type = 'payment';
+
+CREATE INDEX IF NOT EXISTS idx_payments_operation_type ON payments(operation_type);
+CREATE INDEX IF NOT EXISTS idx_payments_debt_type ON payments(debt_type);
+
+-- ✅ Migration 014: Restructure debts table - amount should always be remaining balance
+-- Add original_amount column to track initial debt amount
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS original_amount NUMERIC(12,2);
+
+-- Set original_amount from current amount for existing debts
+UPDATE debts 
+SET original_amount = COALESCE(amount, 0)
+WHERE original_amount IS NULL;
+
+-- Recalculate amount as remaining balance for existing debts
+UPDATE debts d
+SET amount = GREATEST(
+  COALESCE((SELECT d.original_amount + COALESCE(SUM(da.amount), 0) FROM debt_additions da WHERE da.debt_id = d.id), 0) -
+  COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.debt_id = d.id), 0),
+  0
+)
+WHERE original_amount IS NOT NULL;
+
+-- From now on:
+-- - original_amount = initial debt amount (never changes)
+-- - amount = remaining balance (decreases as payments are made, increases if additions are made)
+-- - Use calculateDebtBalance() function to get total, additions, payments
+
+CREATE INDEX IF NOT EXISTS idx_debts_original_amount ON debts(original_amount);

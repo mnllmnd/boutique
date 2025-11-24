@@ -1004,6 +1004,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
@@ -1013,7 +1014,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
     const subtleAccent = Color.fromARGB(255, 167, 139, 250);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(140),
         child: Container(

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
+import 'dart:html' as html;
 
 import 'add_payment_page.dart';
 import 'add_addition_page.dart';
@@ -736,6 +740,19 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     return merged;
   }
 
+  // ✅ NOUVELLE FONCTION : Générer le label de solde personnalisé avec nom du client
+  String _buildBalanceLabel(String clientName, bool isPret, double remaining) {
+    if (remaining <= 0) {
+      return 'TERMINÉ ✓';
+    } else if (isPret) {
+      // Prêt : le client doit payer
+      return '${clientName.toUpperCase()} VOUS DOIT';
+    } else {
+      // Emprunt : je dois payer
+      return 'VOUS DEVEZ À ${clientName.toUpperCase()}';
+    }
+  }
+
   // ✅ NOUVELLE FONCTION : Générer la liste d'historique unifié
   List<Widget> _buildUnifiedHistory(Color textColor, Color textColorSecondary) {
     final mergedHistory = _getMergedHistory();
@@ -766,7 +783,6 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     final amount = _parseDouble(item['amount']);
 
     final isPayment = type == 'payment';
-    final isAddition = type == 'addition';
     final isCreation = type == 'creation';
 
     IconData leadingIcon;
@@ -816,6 +832,11 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
           children: [
             Row(
               children: [
+                if (isCreation)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(Icons.push_pin, size: 14, color: Colors.red),
+                  ),
                 Text(
                   titleText,
                   style: TextStyle(
@@ -863,6 +884,587 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         ),
       ),
     );
+  }
+
+  // Fonction pour télécharger/partager l'historique en PDF
+  Future<void> _downloadHistoryPdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Génération du PDF en cours...')),
+      );
+
+      final history = _getMergedHistory();
+      final clientName = _client?['name'] ?? _debt['client_name'] ?? (AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact');
+      final debtAmount = _parseDouble(_debt['amount']);
+      final remaining = _calculateRemaining(_debt, payments);
+      final debtType = _isLoan() ? 'Emprunt' : 'Prêt';
+      final clientPhone = _client?['phone'] ?? widget.ownerPhone ?? '';
+
+      // Créer le PDF
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(16),
+          build: (pw.Context context) {
+            return pw.Container(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // En-tête avec fond style cahier
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue800,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'HISTORIQUE',
+                              style: pw.TextStyle(
+                                fontSize: 28,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                            pw.Text(
+                              'Détail des transactions',
+                              style: pw.TextStyle(
+                                fontSize: 12,
+                                color: PdfColors.blue100,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text(
+                              _fmtDate(DateTime.now()),
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                color: PdfColors.blue100,
+                              ),
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              'BOUTIQUE',
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(height: 18),
+
+                  // Bloc client et solde avec design cahier
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      // Infos client
+                      pw.Expanded(
+                        flex: 2,
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(14),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey50,
+                            border: pw.Border.all(color: PdfColors.grey300, width: 1.5),
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                'CLIENT',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey600,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              pw.SizedBox(height: 6),
+                              pw.Text(
+                                clientName.toUpperCase(),
+                                style: pw.TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
+                                ),
+                              ),
+                              pw.SizedBox(height: 10),
+                              pw.Divider(color: PdfColors.grey300, height: 1),
+                              pw.SizedBox(height: 10),
+                              pw.Text(
+                                'TÉLÉPHONE',
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey600,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              pw.SizedBox(height: 4),
+                              pw.Text(
+                                clientPhone.isNotEmpty ? clientPhone : '-',
+                                style: pw.TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(width: 12),
+                      // Solde restant badge
+                      pw.Expanded(
+                        flex: 1,
+                        child: pw.Container(
+                          padding: const pw.EdgeInsets.all(14),
+                          decoration: pw.BoxDecoration(
+                            color: remaining > 0 ? PdfColors.red50 : PdfColors.green50,
+                            border: pw.Border.all(
+                              color: remaining > 0 ? PdfColors.red400 : PdfColors.green400,
+                              width: 2,
+                            ),
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.center,
+                            children: [
+                              pw.Text(
+                                'SOLDE',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: remaining > 0 ? PdfColors.red700 : PdfColors.green700,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              pw.SizedBox(height: 6),
+                              pw.Text(
+                                _fmtAmount(remaining),
+                                style: pw.TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: remaining > 0 ? PdfColors.red800 : PdfColors.green800,
+                                ),
+                              ),
+                              pw.SizedBox(height: 8),
+                              pw.Container(
+                                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: pw.BoxDecoration(
+                                  color: remaining > 0 ? PdfColors.red200 : PdfColors.green200,
+                                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                ),
+                                child: pw.Text(
+                                  remaining > 0 ? 'À PAYER' : 'SOLDÉ',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: remaining > 0 ? PdfColors.red900 : PdfColors.green900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 18),
+
+                  // Infos type et montant
+                  pw.Row(
+                    children: [
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'TYPE',
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.grey600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              debtType,
+                              style: pw.TextStyle(
+                                fontSize: 12,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'MONTANT INITIAL',
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.grey600,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              _fmtAmount(debtAmount),
+                              style: pw.TextStyle(
+                                fontSize: 12,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 16),
+
+                  // Tableau d'historique
+                  pw.Text(
+                    'TRANSACTIONS (${history.length})',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+
+                  // En-tête du tableau avec fond sombre
+                  pw.Container(
+                    color: PdfColors.blue900,
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            'DESCRIPTION',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            'MONTANT',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              letterSpacing: 0.8,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            'DATE',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              letterSpacing: 0.8,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(
+                            'NOTE',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              letterSpacing: 0.8,
+                            ),
+                            textAlign: pw.TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Lignes d'historique
+                  ...history.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final type = item['type'] as String? ?? '';
+                    final amount = _parseDouble(item['amount']);
+                    final data = item['data'] as Map? ?? <String, dynamic>{};
+                    final notes = data['notes']?.toString().trim() ?? '';
+                    final operationType = data['operation_type']?.toString() ?? '';
+
+                    String description = '';
+                    
+                    // ✅ NOUVEAU: Utiliser operation_type pour une meilleure clarté
+                    if (type == 'creation') {
+                      description = debtType == 'Emprunt' ? 'Emprunt initial' : 'Prêt initial';
+                    } else if (type == 'payment') {
+                      // Vérifier si c'est un remboursement d'emprunt ou un paiement de prêt
+                      if (operationType == 'loan_payment') {
+                        description = 'Remboursement emprunt';
+                      } else {
+                        description = 'Paiement reçu';
+                      }
+                    } else {
+                      // Addition: vérifie si c'est un emprunt supplémentaire ou un prêt supplémentaire
+                      if (operationType == 'loan_addition') {
+                        description = 'Emprunt supplémentaire';
+                      } else {
+                        description = 'Montant prêté supplémentaire';
+                      }
+                    }
+
+                    final dateStr = type == 'payment'
+                        ? _formatPaymentDate(data['paid_at'])
+                        : _fmtDate(data['created_at'] ?? data['added_at'] ?? data['date'] ?? data['createdAt']);
+
+                    // Alternating row colors: odd rows light grey, even rows white
+                    final rowColor = index % 2 == 0 ? PdfColors.white : PdfColors.grey100;
+
+                    return pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border(
+                          bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5),
+                        ),
+                        color: notes.isNotEmpty ? PdfColors.yellow50 : rowColor,
+                      ),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                              description,
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.grey800,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                            ),
+                          ),
+                          pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                              _fmtAmount(amount),
+                              style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: type == 'payment' ? PdfColors.green700 : PdfColors.orange700,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                          pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                              dateStr,
+                              style: pw.TextStyle(
+                                fontSize: 9,
+                                color: PdfColors.grey700,
+                              ),
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                          pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(
+                              notes.isNotEmpty ? notes : '-',
+                              style: pw.TextStyle(
+                                fontSize: 9,
+                                fontStyle: notes.isNotEmpty ? pw.FontStyle.italic : pw.FontStyle.normal,
+                                color: notes.isNotEmpty ? PdfColors.orange800 : PdfColors.grey500,
+                              ),
+                              maxLines: 2,
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+
+                  pw.SizedBox(height: 20),
+                  pw.Divider(color: PdfColors.blue400, thickness: 1.5),
+                  pw.SizedBox(height: 16),
+
+                  // Résumé final - style badge
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue50,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColors.blue400, width: 1),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                              'Montant initial',
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                            pw.Text(
+                              _fmtAmount(debtAmount),
+                              style: pw.TextStyle(
+                                fontSize: 11,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.grey800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.SizedBox(height: 12),
+                        pw.Divider(color: PdfColors.blue200, thickness: 0.5),
+                        pw.SizedBox(height: 12),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                              'SOLDE RESTANT',
+                              style: pw.TextStyle(
+                                fontSize: 13,
+                                fontWeight: pw.FontWeight.bold,
+                                color: remaining > 0 ? PdfColors.red700 : PdfColors.green700,
+                              ),
+                            ),
+                            pw.Text(
+                              _fmtAmount(remaining.abs()),
+                              style: pw.TextStyle(
+                                fontSize: 16,
+                                fontWeight: pw.FontWeight.bold,
+                                color: remaining > 0 ? PdfColors.red700 : PdfColors.green700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (remaining <= 0) ...[
+                          pw.SizedBox(height: 12),
+                          pw.Text(
+                            '✓ DETTE COMPLÈTEMENT SOLDÉE',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.green700,
+                            ),
+                          ),
+                        ] else ...[
+                          pw.SizedBox(height: 12),
+                          pw.Text(
+                            'SOLDE À PAYER',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.red700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      // Générer les bytes du PDF
+      final pdfBytes = await pdf.save();
+
+      // Créer un nom de fichier
+      final fileName = 'Historique_${clientName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+      if (kIsWeb) {
+        // Sur le web, télécharger directement
+        final blob = html.Blob([pdfBytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF téléchargé: $fileName'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Sur mobile, créer un fichier temporaire
+        final tempDir = await Directory.systemTemp.createTemp();
+        final pdfFile = File('${tempDir.path}/$fileName');
+        await pdfFile.writeAsBytes(pdfBytes);
+
+        // Partager le PDF
+        await Share.shareXFiles(
+          [XFile(pdfFile.path, mimeType: 'application/pdf')],
+          text: 'Historique de transaction - $clientName ($debtType)',
+        );
+
+        // Nettoyer le fichier temporaire après partage
+        if (pdfFile.existsSync()) {
+          pdfFile.deleteSync();
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Fonction pour formater la date d'échéance de manière intelligente
@@ -932,6 +1534,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
     final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
@@ -954,7 +1557,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     final isPret = debtType == 'debt';
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -1064,16 +1667,41 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                 ),
                 const SizedBox(height: 20),
                 
-                // Montant principal
-                Center(
-                  child: Text(
-                    _fmtAmount(amount),
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w300,
-                      color: textColor,
-                      height: 1,
+                // ✅ AFFICHAGE DU RESTE - PRINCIPAL ET AMÉLIORÉ avec nom du client
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: remaining <= 0 ? Colors.green : Colors.red,
+                      width: 2,
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    color: (remaining <= 0 ? Colors.green : Colors.red).withOpacity(0.05),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _buildBalanceLabel(clientName, isPret, remaining),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.5,
+                          color: remaining <= 0 ? Colors.green : Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _fmtAmount(remaining.abs()),
+                        style: TextStyle(
+                          fontSize: 44,
+                          fontWeight: FontWeight.w700,
+                          color: remaining <= 0 ? Colors.green : Colors.red,
+                          height: 1,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1397,6 +2025,31 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: textColorSecondary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _downloadHistoryPdf,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.picture_as_pdf, size: 12, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Text(
+                          'PDF',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (_getMergedHistory().length > 5) ...[

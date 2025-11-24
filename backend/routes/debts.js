@@ -164,26 +164,27 @@ router.post('/', async (req, res) => {
       const existingDebt = existingDebtRes.rows[0];
       const addedAt = new Date();
       
+      // Determine operation type based on debt type
+      const operationType = type === 'loan' ? 'loan_addition' : 'addition';
+      
       const insert = await pool.query(
-        'INSERT INTO debt_additions (debt_id, amount, added_at, notes) VALUES ($1, $2, $3, $4) RETURNING *',
-        [existingDebt.id, amount, addedAt, notes || 'Montant ajouté']
+        'INSERT INTO debt_additions (debt_id, amount, added_at, notes, operation_type, debt_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [existingDebt.id, amount, addedAt, notes || 'Montant ajouté', operationType, type]
       );
       
-      // Update the debt's total amount
-      const newTotalAmount = parseFloat(existingDebt.amount) + parseFloat(amount);
-      await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [newTotalAmount, existingDebt.id]);
+      // ✅ RECALCULATE: amount should always be the remaining balance
+      const balance = await calculateDebtBalance(existingDebt.id);
+      await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [balance.remaining, existingDebt.id]);
       
       // log addition activity
       try {
         await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [creditor, type === 'loan' ? 'loan_addition' : 'debt_addition', JSON.stringify({ addition_id: insert.rows[0].id, debt_id: existingDebt.id, amount })]);
       } catch (e) { console.error('Activity log error:', e); }
       
-      const balance = await calculateDebtBalance(existingDebt.id);
-      
       res.status(201).json({ 
         type: 'addition',
         addition: insert.rows[0], 
-        new_debt_amount: newTotalAmount,
+        new_debt_amount: balance.remaining,
         debt_id: existingDebt.id,
         total_debt: balance.total_debt,
         remaining: balance.remaining
@@ -228,15 +229,17 @@ router.put('/:id', async (req, res) => {
     const checkRes = await pool.query('SELECT * FROM debts WHERE id=$1 AND creditor=$2', [id, owner]);
     if (checkRes.rowCount === 0) return res.status(404).json({ error: 'Not found' });
     
+    // ✅ IMPORTANT: 'amount' is now read-only (calculated from base + additions - payments)
+    // Users should use POST /:id/add or POST /:id/pay endpoints instead
+    if (amount !== undefined) {
+      return res.status(400).json({ error: 'Cannot directly update amount. Use POST /:id/add or POST /:id/pay instead.' });
+    }
+    
     // Build update query dynamically (only update provided fields)
     let updateFields = [];
     let params = [];
     let paramIndex = 1;
     
-    if (amount !== undefined) {
-      updateFields.push(`amount=$${paramIndex++}`);
-      params.push(amount);
-    }
     if (due_date !== undefined) {
       updateFields.push(`due_date=$${paramIndex++}`);
       params.push(due_date);
@@ -296,7 +299,7 @@ router.post('/:id/pay', async (req, res) => {
   try {
     const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
     // ensure debt belongs to owner
-    const debtRes = await pool.query('SELECT creditor FROM debts WHERE id=$1', [id]);
+    const debtRes = await pool.query('SELECT creditor, type FROM debts WHERE id=$1', [id]);
     if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
     if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
 
@@ -317,7 +320,15 @@ router.post('/:id/pay', async (req, res) => {
     }
 
     const paidAt = paid_at || new Date();
-    const insert = await pool.query('INSERT INTO payments (debt_id, amount, paid_at, notes) VALUES ($1, $2, $3, $4) RETURNING *', [id, paymentAmount, paidAt, notes]);
+    const debtType = debtRes.rows[0].type || 'debt';
+    
+    // ✅ NOUVEAU : Déterminer le type d'opération basé sur le type de dette
+    const operationType = debtType === 'loan' ? 'loan_payment' : 'payment';
+    
+    const insert = await pool.query(
+      'INSERT INTO payments (debt_id, amount, paid_at, notes, operation_type, debt_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, paymentAmount, paidAt, notes, operationType, debtType]
+    );
 
     // ✅ RECALCULER APRÈS INSERTION
     const newBalance = await calculateDebtBalance(id);
@@ -329,7 +340,7 @@ router.post('/:id/pay', async (req, res) => {
 
     // log payment activity
     try {
-      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'payment', JSON.stringify({ payment_id: insert.rows[0].id, debt_id: id, amount: paymentAmount })]);
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, debtType === 'loan' ? 'loan_payment' : 'payment', JSON.stringify({ payment_id: insert.rows[0].id, debt_id: id, amount: paymentAmount, operation_type: operationType })]);
     } catch (e) { console.error('Activity log error:', e); }
 
     res.status(201).json({ 
@@ -423,33 +434,42 @@ router.post('/:id/add', async (req, res) => {
   try {
     const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
     // ensure debt belongs to owner
-    const debtRes = await pool.query('SELECT creditor, amount FROM debts WHERE id=$1', [id]);
+    const debtRes = await pool.query('SELECT creditor, amount, type FROM debts WHERE id=$1', [id]);
     if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
     if (debtRes.rows[0].creditor !== owner) return res.status(403).json({ error: 'Forbidden' });
 
     const addedAtTime = added_at || new Date();
+    const debtType = debtRes.rows[0].type || 'debt';
+    
+    // ✅ NOUVEAU : Déterminer le type d'opération basé sur le type de dette
+    const operationType = debtType === 'loan' ? 'loan_addition' : 'addition';
+    
     const insert = await pool.query(
-      'INSERT INTO debt_additions (debt_id, amount, added_at, notes) VALUES ($1, $2, $3, $4) RETURNING *',
-      [id, amount, addedAtTime, notes]
+      'INSERT INTO debt_additions (debt_id, amount, added_at, notes, operation_type, debt_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, amount, addedAtTime, notes, operationType, debtType]
     );
 
-    // Update the debt's total amount
-    const newTotalAmount = parseFloat(debtRes.rows[0].amount) + parseFloat(amount);
-    await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [newTotalAmount, id]);
+    // ✅ RECALCULATE: amount should always be the remaining balance
+    const balance = await calculateDebtBalance(id);
+    
+    // Update debt with new remaining balance and original_amount if not set
+    await pool.query(
+      'UPDATE debts SET amount=$1, original_amount = COALESCE(original_amount, $2) WHERE id=$3',
+      [balance.remaining, balance.total_debt - balance.total_additions, id]
+    );
 
     // Recalculate paid status
-    const balance = await calculateDebtBalance(id);
     const paidFlag = balance.remaining <= 0.01;
     await pool.query('UPDATE debts SET paid = $1, paid_at = $2 WHERE id=$3', [paidFlag, paidFlag ? new Date() : null, id]);
 
     // log addition activity
     try {
-      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'debt_addition', JSON.stringify({ addition_id: insert.rows[0].id, debt_id: id, amount })]);
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, debtType === 'loan' ? 'loan_addition' : 'debt_addition', JSON.stringify({ addition_id: insert.rows[0].id, debt_id: id, amount, operation_type: operationType })]);
     } catch (e) { console.error('Activity log error:', e); }
 
     res.status(201).json({ 
       addition: insert.rows[0], 
-      new_debt_amount: newTotalAmount,
+      new_debt_amount: balance.remaining,
       total_debt: balance.total_debt,
       remaining: balance.remaining
     });
@@ -495,12 +515,11 @@ router.delete('/:id/additions/:additionId', async (req, res) => {
     // delete the addition
     await pool.query('DELETE FROM debt_additions WHERE id=$1', [additionId]);
 
-    // Update the debt's total amount (subtract the addition)
-    const newTotalAmount = parseFloat(debtRes.rows[0].amount) - additionAmount;
-    await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [Math.max(newTotalAmount, 0), id]);
+    // ✅ RECALCULATE: amount should be the remaining balance after deletion
+    const balance = await calculateDebtBalance(id);
+    await pool.query('UPDATE debts SET amount=$1 WHERE id=$2', [balance.remaining, id]);
 
     // Recalculate paid status
-    const balance = await calculateDebtBalance(id);
     const paidFlag = balance.remaining <= 0.01;
     await pool.query('UPDATE debts SET paid = $1, paid_at = $2 WHERE id=$3', [paidFlag, paidFlag ? new Date() : null, id]);
 
@@ -511,7 +530,7 @@ router.delete('/:id/additions/:additionId', async (req, res) => {
 
     res.json({ 
       success: true, 
-      new_debt_amount: Math.max(newTotalAmount, 0),
+      new_debt_amount: balance.remaining,
       total_debt: balance.total_debt,
       remaining: balance.remaining
     });

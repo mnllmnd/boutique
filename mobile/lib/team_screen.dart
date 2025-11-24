@@ -16,6 +16,7 @@ class _TeamScreenState extends State<TeamScreen> {
   bool _loading = true;
   List members = [];
   List activity = [];
+  int _selectedSection = 0; // 0: Membres, 1: Activité
 
   String get apiHost {
     return 'http://localhost:3000/api';
@@ -46,153 +47,83 @@ class _TeamScreenState extends State<TeamScreen> {
     final phoneCtl = TextEditingController();
     final nameCtl = TextEditingController();
     String role = 'clerk';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
-    final borderColor = isDark ? Colors.white24 : Colors.black26;
 
-    final ok = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => Dialog(
-        backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 500),
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'INVITER UN MEMBRE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textColor,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Inviter un membre',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               TextField(
                 controller: phoneCtl,
                 keyboardType: TextInputType.phone,
-                style: TextStyle(color: textColor, fontSize: 15),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Numéro de téléphone',
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: textColorSecondary,
-                  ),
                   hintText: 'Ex: +221771234567',
-                  border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: borderColor, width: 0.5),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textColor, width: 1),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: nameCtl,
-                style: TextStyle(color: textColor, fontSize: 15),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Nom complet',
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: textColorSecondary,
-                  ),
-                  border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: borderColor, width: 0.5),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textColor, width: 1),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                initialValue: role,
-                style: TextStyle(color: textColor, fontSize: 15),
-                dropdownColor: Theme.of(context).cardColor,
+                value: role,
                 items: const [
                   DropdownMenuItem(
                     value: 'clerk',
-                    child: Text('VENDEUR'),
+                    child: Text('Vendeur'),
                   ),
                   DropdownMenuItem(
                     value: 'admin',
-                    child: Text('ADMINISTRATEUR'),
+                    child: Text('Administrateur'),
                   ),
                 ],
                 onChanged: (v) => role = v ?? role,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Rôle',
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: textColorSecondary,
-                  ),
-                  border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: borderColor, width: 0.5),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: textColor, width: 1),
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: Text(
-                      'ANNULER',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
-                        color: textColorSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.white : Colors.black,
-                      foregroundColor: isDark ? Colors.black : Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                    ),
-                    child: Text(
-                      'INVITER',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
-                        color: isDark ? Colors.black : Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: const Text('Envoyer l\'invitation'),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
       ),
     );
 
-    if (ok == true && phoneCtl.text.trim().isNotEmpty) {
+    if (result == true && phoneCtl.text.trim().isNotEmpty) {
       try {
         final headers = {'Content-Type': 'application/json', 'x-owner': widget.ownerPhone};
         final res = await http.post(
@@ -202,33 +133,172 @@ class _TeamScreenState extends State<TeamScreen> {
         );
         if (res.statusCode == 201) {
           await _load();
-          if (mounted) _showMinimalSnackbar('Invitation envoyée');
-        } else {
-          _showMinimalSnackbar('Impossible d\'envoyer l\'invitation');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Invitation envoyée')),
+            );
+          }
         }
       } catch (e) {
-        _showMinimalSnackbar('Erreur lors de l\'invitation');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors de l\'invitation')),
+          );
+        }
       }
     }
   }
 
-  void _showMinimalSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1,
-            color: Colors.white,
-          ),
+  void _showMemberDetails(Map member) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                (member['name'] ?? 'Pas de nom').toUpperCase(),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                member['phone'] ?? 'Pas de téléphone',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.work_outline,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Rôle',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: (member['role'] == 'admin' 
+                          ? Theme.of(context).colorScheme.primaryContainer 
+                          : Theme.of(context).colorScheme.secondaryContainer),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      member['role'] == 'admin' ? 'ADMIN' : 'VENDEUR',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: member['role'] == 'admin' 
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Fermer'),
+            ),
+          ],
         ),
-        backgroundColor: Colors.black,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-        margin: const EdgeInsets.all(20),
-        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showActivityDetails(Map activityItem) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Détails de l\'activité',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _formatActivityMessage(activityItem),
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatDate(activityItem['created_at']),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -294,287 +364,306 @@ class _TeamScreenState extends State<TeamScreen> {
     return 'Paiement enregistré';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
-    final borderColor = isDark ? Colors.white24 : Colors.black26;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.close, color: textColor, size: 24),
-          onPressed: () => Navigator.of(context).pop(),
+  Widget _buildMembersSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Membres (${members.length})',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            FilledButton.tonal(
+              onPressed: _invite,
+              child: const Text('Inviter'),
+            ),
+          ],
         ),
-        title: Text(
-          'ÉQUIPE',
-          style: TextStyle(
-            fontSize: 12,
+        const SizedBox(height: 16),
+        if (members.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.people_outline,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Aucun membre',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Invitez des membres pour collaborer',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.2,
+            ),
+            itemCount: members.length,
+            itemBuilder: (context, index) {
+              final member = members[index];
+              return Card(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _showMemberDetails(member),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          (member['name'] ?? 'Pas de nom').toUpperCase(),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          member['role'] == 'admin' ? 'Administrateur' : 'Vendeur',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildActivitySection() {
+    final recentActivity = activity.take(4).toList(); // Limite à 4 activités
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Activité récente (${activity.length})',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            letterSpacing: 2,
-            color: textColor,
           ),
         ),
-        centerTitle: true,
+        const SizedBox(height: 16),
+        if (activity.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.history_outlined,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Aucune activité',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'L\'activité de l\'équipe apparaîtra ici',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: recentActivity.map((activityItem) => Card(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _showActivityDetails(activityItem),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.history,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _formatActivityMessage(activityItem),
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDate(activityItem['created_at']),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )).toList(),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Équipe'),
+        actions: [
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // MEMBRES SECTION
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Navigation Segmented
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          'MEMBRES',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
-                            color: textColorSecondary,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedSection = 0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _selectedSection == 0
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Membres',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: _selectedSection == 0
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: borderColor, width: 0.5),
-                          ),
-                          child: TextButton(
-                            onPressed: _invite,
-                            style: TextButton.styleFrom(
-                              foregroundColor: textColor,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-                            ),
-                            child: Text(
-                              'INVITER',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1,
-                                color: textColor,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedSection = 1),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _selectedSection == 1
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Activité',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: _selectedSection == 1
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '${members.length} MEMBRE${members.length > 1 ? 'S' : ''}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (members.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: borderColor, width: 0.5),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 48,
-                              color: textColorSecondary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'AUCUN MEMBRE',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: textColorSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Invitez des membres pour collaborer',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColorSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ...members.map((m) => Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: borderColor, width: 0.5),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).brightness == Brightness.light ? Colors.grey[100] : Colors.grey[900],
-                                    ),
-                                    child: Icon(
-                                      Icons.person_outline,
-                                      color: textColorSecondary,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          (m['name'] ?? 'Pas de nom').toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          m['phone'] ?? 'Pas de téléphone',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: textColorSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: (m['role'] == 'admin' ? Colors.blue : Colors.green).withOpacity(0.6),
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      m['role'] == 'admin' ? 'ADMIN' : 'VENDEUR',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1,
-                                        color: m['role'] == 'admin' ? Colors.blue : Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )),
-
-                    const SizedBox(height: 32),
-
-                    // ACTIVITÉ SECTION
-                    Text(
-                      'ACTIVITÉ RÉCENTE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.5,
-                        color: textColorSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '${activity.length} ACTION${activity.length > 1 ? 'S' : ''}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (activity.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: borderColor, width: 0.5),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.history_outlined,
-                              size: 48,
-                              color: textColorSecondary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'AUCUNE ACTIVITÉ',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: textColorSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'L\'activité de l\'équipe apparaîtra ici',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textColorSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ...activity.map((a) => Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: borderColor, width: 0.5),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _formatActivityMessage(a),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w400,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _formatDate(a['created_at']),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1,
-                                      color: textColorSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Contenu de la section sélectionnée
+                  _selectedSection == 0 ? _buildMembersSection() : _buildActivitySection(),
+                  
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
     );

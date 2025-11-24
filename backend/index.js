@@ -98,6 +98,32 @@ try {
 	console.error('Could not run migrations:', e);
 }
 
+// ✅ Run all migration files from migrations/ folder
+async function runMigrations() {
+	try {
+		const migrationsDir = path.join(__dirname, 'migrations');
+		const files = fs.readdirSync(migrationsDir)
+			.filter(file => file.endsWith('.sql'))
+			.sort(); // Run in order
+		
+		for (const file of files) {
+			const migrationPath = path.join(migrationsDir, file);
+			const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+			try {
+				await pool.query(migrationSql);
+				console.log(`✅ Migration applied: ${file}`);
+			} catch (err) {
+				console.error(`❌ Migration failed (${file}):`, err.message);
+				// Continue with next migration even if one fails
+			}
+		}
+	} catch (e) {
+		console.error('Could not run migration files:', e);
+	}
+}
+
+runMigrations();
+
 app.get('/', (req, res) => res.send('Boutique backend is running'));
 
 app.listen(port, () => console.log(`Server running on port ${port}`));
