@@ -156,36 +156,67 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
   void _showConfirmDialog(String title, String message, {required VoidCallback onConfirm}) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) => Dialog(
         backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(title, style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.onSurface,
-        )),
-        content: Text(message, style: TextStyle(
-          fontSize: 14,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Annuler', style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            )),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: -0.3,
+              )),
+              const SizedBox(height: 16),
+              Text(message, 
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.6,
+                  fontWeight: FontWeight.w300,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                )),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('ANNULER', style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.2,
+                    )),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      onConfirm();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('CONTINUER', style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.2,
+                    )),
+                  ),
+                ],
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onConfirm();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-            child: const Text('Se connecter'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -193,10 +224,16 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+        content: Text(message, style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w300,
+          letterSpacing: 0.2,
+        )),
+        backgroundColor: Colors.black87,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       ),
     );
   }
@@ -207,62 +244,97 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) => Dialog(
         backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
-          children: [
-            Icon(Icons.lock_outline, size: 32, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text('Vérification PIN', style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            )),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Entrez votre code PIN', style: TextStyle(
-              fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            )),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinCtl,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 24, letterSpacing: 8),
-              decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                hintText: '••••',
-                counterText: '',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Code PIN', style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: -0.3,
+              )),
+              const SizedBox(height: 8),
+              Text('Entrez votre code à 4 chiffres', 
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                )),
+              const SizedBox(height: 32),
+              TextField(
+                controller: pinCtl,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 32, 
+                  letterSpacing: 16, 
+                  fontWeight: FontWeight.w300,
+                ),
+                decoration: InputDecoration(
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  hintText: '••••',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+                    letterSpacing: 16,
+                  ),
+                  counterText: '',
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('ANNULER', style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.2,
+                    )),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _verifyPin(phone, userId);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('VÉRIFIER', style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.2,
+                    )),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Annuler', style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            )),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _verifyPin(phone, userId);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-            child: const Text('Vérifier'),
-          ),
-        ],
       ),
     );
   }
@@ -332,88 +404,134 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 12),
-                
-                // Header
-                Icon(Icons.account_balance_wallet, size: 48, color: colors.primary),
-                const SizedBox(height: 12),
-                Text('Gestion de Dettes', style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: colors.onBackground,
-                )),
-                const SizedBox(height: 4),
-                Text('Inscription rapide', style: TextStyle(
-                  fontSize: 14,
-                  color: colors.onBackground.withOpacity(0.6),
-                )),
-                const SizedBox(height: 28),
-
-                // Phone Input
-                TextField(
-                  controller: phoneCtl,
-                  keyboardType: TextInputType.phone,
-                  style: TextStyle(fontSize: 16, color: colors.onBackground),
-                  decoration: InputDecoration(
-                    labelText: 'Numéro de téléphone',
-                    hintText: '77 123 45 67',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Continue Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: loading ? null : _doQuickSignup,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.primary,
-                      disabledBackgroundColor: colors.primary.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: loading 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text('Continuer', style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: colors.onPrimary,
-                          )),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Benefits
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.outline.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Minimal Header
+                  Column(
                     children: [
-                      _buildBenefit('✓ Accès immédiat à l\'app'),
-                      _buildBenefit('✓ Créer dettes et clients'),
-                      _buildBenefit('✓ Profil complétable plus tard'),
+                      Text('Borr', style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w300,
+                        color: colors.onBackground,
+                        letterSpacing: -1,
+                        height: 1.1,
+                      )),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 1,
+                        color: colors.primary,
+                      ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 64),
+
+                  // Phone Input
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Numéro de téléphone', style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.5,
+                        color: colors.onBackground.withOpacity(0.5),
+                      )),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: phoneCtl,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(
+                          fontSize: 16, 
+                          color: colors.onBackground,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 0.5,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '77 123 45 67',
+                          border: UnderlineInputBorder(
+                            borderSide: BorderSide(color: colors.outline.withOpacity(0.2)),
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: colors.outline.withOpacity(0.2)),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: colors.primary),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          hintStyle: TextStyle(
+                            color: colors.onSurface.withOpacity(0.3),
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Continue Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: loading ? null : _doQuickSignup,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        foregroundColor: colors.onPrimary,
+                        disabledBackgroundColor: colors.primary.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                      ),
+                      child: loading 
+                          ? SizedBox(
+                              width: 18, 
+                              height: 18, 
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: colors.onPrimary,
+                              ),
+                            )
+                          : Text('CONTINUER', style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 2,
+                              color: colors.onPrimary,
+                            )),
+                    ),
+                  ),
+                  const SizedBox(height: 64),
+
+                  // Benefits Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMinimalBenefit('Accès immédiat'),
+                      _buildMinimalBenefit('Gestion simplifiée'),
+                      _buildMinimalBenefit('Sécurisé'),
+                    ],
+                  ),
+                  const SizedBox(height: 48),
+                  
+                  // Footer
+                  Text('Aucune information bancaire requise', style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w300,
+                    color: colors.onBackground.withOpacity(0.3),
+                    letterSpacing: 0.5,
+                  )),
+                ],
+              ),
             ),
           ),
         ),
@@ -421,13 +539,28 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     );
   }
 
-  Widget _buildBenefit(String text) {
+  Widget _buildMinimalBenefit(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(text, style: TextStyle(
-        fontSize: 13,
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-      )),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(text, style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w300,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            letterSpacing: 0.3,
+          )),
+        ],
+      ),
     );
   }
 }
