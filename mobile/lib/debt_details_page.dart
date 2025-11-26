@@ -28,11 +28,13 @@ class DebtDetailsPage extends StatefulWidget {
 class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderStateMixin {
   List payments = [];
   List additions = [];
+  List<Map<String, dynamic>> disputes = []; // ✅ NOUVEAU : Contestations
   bool _loading = false;
   bool _changed = false;
   late AudioService _audioService;
   late Map _debt; // Copie locale de la dette
   Map<String, dynamic>? _client; // ✅ Infos du client
+  late AppSettings _appSettings; // ✅ NOUVEAU : Écouter les changements de devise
   
   // États pour masquer/afficher les sections
   bool _showAllHistory = false;
@@ -60,6 +62,9 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     _changed = false;
     // ✅ NOUVEAU : Initialiser TabController
     _tabController = TabController(length: 2, vsync: this);
+    // ✅ NOUVEAU : Écouter les changements d'AppSettings (devise)
+    _appSettings = AppSettings();
+    _appSettings.addListener(_onAppSettingsChanged);
     _loadAllData();
     _startAutoRefresh();
   }
@@ -68,8 +73,16 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
   void dispose() {
     _refreshTimer?.cancel();
     _tabController.dispose(); // ✅ NOUVEAU : Disposer du TabController
+    _appSettings.removeListener(_onAppSettingsChanged); // ✅ NOUVEAU : Retirer le listener
     _audioService.dispose();
     super.dispose();
+  }
+
+  // ✅ NOUVEAU : Callback quand AppSettings change (devise)
+  void _onAppSettingsChanged() {
+    if (mounted) {
+      setState(() {}); // Reconstruire le widget avec la nouvelle devise
+    }
   }
 
   void _startAutoRefresh() {
@@ -189,7 +202,13 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         headers: headers
       ).timeout(const Duration(seconds: 8));
       
-      final responses = await Future.wait([debtFuture, paymentsFuture, additionsFuture]);
+      // ✅ NOUVEAU : Charger les contestations
+      final disputesFuture = http.get(
+        Uri.parse('$apiHost/debts/${_debt['id']}/disputes'), 
+        headers: headers
+      ).timeout(const Duration(seconds: 8));
+      
+      final responses = await Future.wait([debtFuture, paymentsFuture, additionsFuture, disputesFuture]);
       
       if (mounted) {
         setState(() {
@@ -213,6 +232,11 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
           if (responses[2].statusCode == 200) {
             // ✅ TRIER LES ADDITIONS DU PLUS RÉCENT AU PLUS ANCIEN
             additions = _sortByDateDescending(json.decode(responses[2].body) as List, 'added_at');
+          }
+          if (responses[3].statusCode == 200) {
+            // ✅ NOUVEAU : Charger les contestations
+            final disputesList = json.decode(responses[3].body) as List;
+            disputes = disputesList.map((d) => Map<String, dynamic>.from(d as Map)).toList();
           }
         });
       }
@@ -263,6 +287,130 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     if (result == true) {
       _changed = true;
       await _loadAllData();
+    }
+  }
+
+  // ✅ NOUVEAU : Créer une contestation
+  Future<void> _createDispute() async {
+    final reasonCtl = TextEditingController();
+    final messageCtl = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Theme.of(context).cardColor,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Contester cette dette',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Expliquez pourquoi vous contestez cette dette. Un message clair aidera à résoudre le conflit.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: textColor.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Raison
+              TextField(
+                controller: reasonCtl,
+                decoration: InputDecoration(
+                  labelText: 'Raison de la contestation',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  hintText: 'Ex: Montant incorrect, doublon, erreur...',
+                ),
+                style: TextStyle(color: textColor, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              
+              // Message détaillé
+              TextField(
+                controller: messageCtl,
+                decoration: InputDecoration(
+                  labelText: 'Message détaillé (optionnel)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  hintText: 'Fournissez des détails supplémentaires...',
+                ),
+                style: TextStyle(color: textColor, fontSize: 14),
+                maxLines: 4,
+              ),
+              const SizedBox(height: 24),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Annuler'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text(
+                      'Contester',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || reasonCtl.text.trim().isEmpty) return;
+
+    try {
+      final headers = {
+        'Content-Type': 'application/json',
+        if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone
+      };
+
+      final res = await http.post(
+        Uri.parse('$apiHost/debts/${_debt['id']}/disputes'),
+        headers: headers,
+        body: json.encode({
+          'reason': reasonCtl.text.trim(),
+          'message': messageCtl.text.trim(),
+        }),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 201) {
+        _changed = true;
+        await _loadAllData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Contestation créée avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        await _showMinimalDialog('Erreur', 'Impossible de créer la contestation');
+      }
+    } catch (e) {
+      await _showMinimalDialog('Erreur réseau', '$e');
     }
   }
 
@@ -890,7 +1038,14 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
       );
 
       final history = _getMergedHistory();
-      final clientName = _getClientName(_client);
+      final displayName = _getClientName(_client);
+      
+      // Si crée par quelqu'un d'autre, afficher le nom du créancier
+      final createdByOther = _debt['created_by_other'] == true;
+      final titleName = (createdByOther && _debt['display_creditor_name'] != null)
+          ? _debt['display_creditor_name']?.toString() ?? displayName  // ✅ Utiliser display_creditor_name (priorité: client.name > creditor_name)
+          : displayName;
+      
       final debtAmount = _parseDouble(_debt['amount']);
       final remaining = _calculateRemaining(_debt, payments);
       final debtType = _isLoan() ? 'Emprunt' : 'Prêt';
@@ -992,7 +1147,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                               ),
                               pw.SizedBox(height: 6),
                               pw.Text(
-                                clientName.toUpperCase(),
+                                titleName.toUpperCase(),
                                 style: pw.TextStyle(
                                   fontSize: 14,
                                   fontWeight: pw.FontWeight.bold,
@@ -1409,7 +1564,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
       final pdfBytes = await pdf.save();
 
       // Créer un nom de fichier
-      final fileName = 'Historique_${clientName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = 'Historique_${titleName.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (kIsWeb) {
         // Sur le web, télécharger directement
@@ -1438,7 +1593,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         // Partager le PDF
         await Share.shareXFiles(
           [XFile(pdfFile.path, mimeType: 'application/pdf')],
-          text: 'Historique de transaction - $clientName ($debtType)',
+          text: 'Historique de transaction - $titleName ($debtType)',
         );
 
         // Nettoyer le fichier temporaire après partage
@@ -1545,8 +1700,27 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     // Parse due date for intelligent display
     final dueDate = _parseDate(_debt['due_date']);
 
-    // NOM DU CLIENT
+    // ✅ NOM À AFFICHER : Client normal OU Créancier si créé par quelqu'un d'autre
     final clientName = _getClientName(_client);
+    String displayName = clientName; // Défaut : nom du client
+    String? displayPhone; // ✅ Numéro séparé pour affichage élégant
+    
+    // ✅ NOUVEAU : Vérifier si cette dette a été créée par quelqu'un d'autre
+    final createdByOther = _debt['created_by_other'] == true || 
+                          (_debt['created_by'] != null && _debt['created_by'] != widget.ownerPhone);
+    
+    // Si créée par quelqu'un d'autre, afficher le nom + numéro du créancier
+    if (createdByOther && _debt['display_creditor_name'] != null) {
+      final displayCreditorName = _debt['display_creditor_name']?.toString() ?? '';  // ✅ Priorité: client.name > creditor_name
+      final creditorPhone = _debt['creditor_phone']?.toString() ?? '';  // ✅ Le numéro du créancier
+      displayName = displayCreditorName.isNotEmpty 
+          ? displayCreditorName
+          : (creditorPhone.isNotEmpty ? creditorPhone : clientName);
+      displayPhone = creditorPhone.isNotEmpty ? creditorPhone : null;
+    } else {
+      // Afficher le phone du client aussi
+      displayPhone = _client?['phone'];
+    }
     
     // ✅ NOUVEAU : Déterminer le type
     final debtType = _debt['type'] ?? 'debt';
@@ -1584,14 +1758,62 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         ),
       ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
+        child: Column(
           children: [
-            // ✅ TAB 1 : PRÊT / EMPRUNT (Actions rapides + Solde)
-            _buildMainTab(context, remaining, amount, totalPaid, progress, dueDate, clientName, isPret, textColor, textColorSecondary, borderColor),
+            // ✅ NOUVEAU : Alerte si cette dette a été créée par quelqu'un d'autre
+            if (createdByOther)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.orange.withOpacity(0.3), width: 1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cette dette a été créée par quelqu\'un d\'autre',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Vous pouvez la contester si vous n\'êtes pas d\'accord',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             
-            // ✅ TAB 2 : DÉTAILS (Notes + Historique)
-            _buildDetailsTab(context, textColor, textColorSecondary, borderColor),
+            // Contenu principal
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // ✅ TAB 1 : PRÊT / EMPRUNT (Actions rapides + Solde)
+                  _buildMainTab(context, remaining, amount, totalPaid, progress, dueDate, displayName, displayPhone, isPret, textColor, textColorSecondary, borderColor),
+                  
+                  // ✅ TAB 2 : DÉTAILS (Notes + Historique)
+                  _buildDetailsTab(context, textColor, textColorSecondary, borderColor),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -1605,7 +1827,8 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     double totalPaid,
     double progress,
     DateTime? dueDate,
-    String clientName,
+    String displayName,
+    String? displayPhone,
     bool isPret,
     Color textColor,
     Color textColorSecondary,
@@ -1635,26 +1858,43 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // ✅ NOM ÉLÉGANT (EN HAUT) - style titre
                           Text(
-                            clientName.toUpperCase(),
+                            displayName,
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
                               color: textColor,
+                              letterSpacing: 0.2,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getTermClient(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: textColorSecondary,
+                          // ✅ NUMÉRO EN BAS - minimaliste et discret
+                          if (displayPhone != null && displayPhone.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                displayPhone,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: textColorSecondary.withOpacity(0.65),
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              _getTermClient(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: textColorSecondary.withOpacity(0.7),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -1686,8 +1926,8 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                         remaining <= 0 
                             ? 'TRANSACTION COMPLÉTÉE ✓'
                             : (isPret 
-                                ? '$clientName vous doit'
-                                : 'Vous devez à $clientName'),
+                                ? '$displayName vous doit'
+                                : 'Vous devez à $displayName'),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1696,16 +1936,16 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 10),
-                      // Montant principal
+                      const SizedBox(height: 8),
+                      // Montant principal - plus élégant et compact
                       Text(
                         _fmtAmount(remaining.abs()),
                         style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w300,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w400,
                           color: remaining <= 0 ? Colors.green : Colors.red,
                           height: 1,
-                          letterSpacing: -1,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ],
@@ -2112,6 +2352,68 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
             ..._buildUnifiedHistory(textColor, textColorSecondary),
 
           const SizedBox(height: 20),
+
+          // ✅ NOUVEAU : Section CONTESTATIONS
+          if (disputes.isNotEmpty) ...[
+            _buildSectionHeader('CONTESTATIONS', trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${disputes.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.red,
+                ),
+              ),
+            )),
+            const SizedBox(height: 12),
+            ..._buildDisputesList(textColor, textColorSecondary, borderColor),
+            const SizedBox(height: 20),
+          ],
+
+          // ✅ NOUVEAU : Bouton pour contester
+          if (!disputes.any((d) => d['resolved_at'] == null && d['disputed_by'] == widget.ownerPhone))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _createDispute,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.warning_amber, size: 18, color: Colors.orange.withOpacity(0.7)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'CONTESTER CETTE DETTE',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange.withOpacity(0.7),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          
+          const SizedBox(height: 20),
           
           // Bouton suppression
           Center(
@@ -2192,6 +2494,147 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         ],
       ),
     );
+  }
+
+  // ✅ NOUVEAU : Builder pour afficher les contestations
+  List<Widget> _buildDisputesList(Color textColor, Color textColorSecondary, Color borderColor) {
+    return disputes.map((dispute) {
+      final isResolved = dispute['resolved_at'] != null;
+      final disputedBy = dispute['disputed_by'] ?? 'Inconnu';
+      final reason = dispute['reason'] ?? 'Pas de raison spécifiée';
+      final message = dispute['message'] ?? '';
+      final createdAt = _parseDate(dispute['created_at']);
+      
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isResolved ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: isResolved ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // En-tête
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Contestation de $disputedBy',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _fmtDate(createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: textColorSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isResolved ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isResolved ? 'Résolue' : 'En attente',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: isResolved ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Raison
+            Text(
+              'Raison: $reason',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // Message si présent
+            if (message.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: textColorSecondary.withOpacity(0.05),
+                  border: Border.all(color: textColorSecondary.withOpacity(0.1)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textColorSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            
+            // Note de résolution si présente
+            if (isResolved && dispute['resolution_note'] != null && (dispute['resolution_note'] as String).isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.05),
+                  border: Border.all(color: Colors.green.withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Résolution:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      dispute['resolution_note'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }).toList();
   }
 
   DateTime? _parseDate(dynamic date) {

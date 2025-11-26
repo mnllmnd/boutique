@@ -1893,61 +1893,46 @@ final choice = await showModalBottomSheet<String>(
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // ✅ NOUVEAU : Affichage des PRÊTS et EMPRUNTS séparés
+                        // ✅ NOUVEAU : Affichage des PRÊTS et EMPRUNTS séparés avec trait subtile
                         Row(
                           children: [
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => setState(() => _debtSubTab = _debtSubTab == 'prets' ? '' : 'prets'),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
                                         color: _debtSubTab == 'prets' 
                                           ? Colors.orange
-                                          : Colors.transparent,
-                                        width: _debtSubTab == 'prets' ? 2 : 0,
+                                          : Colors.orange.withOpacity(0.2),
+                                        width: 1.5,
                                       ),
                                     ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.trending_up, size: 14, color: Colors.orange),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            'PRÊTS',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.orange,
-                                              letterSpacing: 1,
-                                            ),
-                                          ),
-                                        ],
+                                      Icon(
+                                        Icons.trending_up,
+                                        size: 13,
+                                        color: _debtSubTab == 'prets'
+                                            ? Colors.orange
+                                            : Colors.orange.withOpacity(0.5),
                                       ),
-                                      const SizedBox(height: 4),
-                                      _showTotalCard
-                                          ? Text(
-                                              AppSettings().formatCurrency(totalPrets),
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.orange,
-                                              ),
-                                            )
-                                          : Text(
-                                              '•••••',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                color: textColorSecondary,
-                                              ),
-                                            ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'PRÊTS',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: _debtSubTab == 'prets'
+                                              ? Colors.orange
+                                              : Colors.orange.withOpacity(0.5),
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1958,54 +1943,39 @@ final choice = await showModalBottomSheet<String>(
                               child: GestureDetector(
                                 onTap: () => setState(() => _debtSubTab = _debtSubTab == 'emprunts' ? '' : 'emprunts'),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
                                         color: _debtSubTab == 'emprunts' 
                                           ? Colors.purple
-                                          : Colors.transparent,
-                                        width: _debtSubTab == 'emprunts' ? 2 : 0,
+                                          : Colors.purple.withOpacity(0.2),
+                                        width: 1.5,
                                       ),
                                     ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.trending_down, size: 14, color: Colors.purple),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            'EMPRUNTS',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.purple,
-                                              letterSpacing: 1,
-                                            ),
-                                          ),
-                                        ],
+                                      Icon(
+                                        Icons.trending_down,
+                                        size: 13,
+                                        color: _debtSubTab == 'emprunts'
+                                            ? Colors.purple
+                                            : Colors.purple.withOpacity(0.5),
                                       ),
-                                      const SizedBox(height: 4),
-                                      _showTotalCard
-                                          ? Text(
-                                              AppSettings().formatCurrency(totalEmprunts),
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.purple,
-                                              ),
-                                            )
-                                          : Text(
-                                              '•••••',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w400,
-                                                color: textColorSecondary,
-                                              ),
-                                            ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'EMPRUNTS',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: _debtSubTab == 'emprunts'
+                                              ? Colors.purple
+                                              : Colors.purple.withOpacity(0.5),
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -2365,7 +2335,23 @@ final choice = await showModalBottomSheet<String>(
           final txType = parts.length > 1 ? parts[1] : 'debt';
           final dynamic clientId = clientIdPart == 'unknown' ? 'unknown' : (int.tryParse(clientIdPart) ?? clientIdPart);
           final client = clients.firstWhere((x) => x['id'] == clientId, orElse: () => null);
-          final clientName = client != null ? client['name'] : (clientId == 'unknown' ? (AppSettings().boutiqueModeEnabled ? 'Clients inconnus' : 'Contacts inconnus') : '${AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact'} $clientId');
+          
+          // ✅ NOUVEAU: Si la dette a été créée par quelqu'un d'autre, afficher le creditor_name
+          String clientName;
+          String? clientPhone; // ✅ Numéro séparé pour affichage élégant
+          if (clientDebts.isNotEmpty && clientDebts.first['created_by_other'] == true) {
+            // C'est une dette créée par un propriétaire pour moi, afficher son nom + numéro
+            final displayCreditorName = clientDebts.first['display_creditor_name']?.toString() ?? '';  // ✅ Priorité: client.name > creditor_name
+            final creditorPhone = clientDebts.first['creditor_phone']?.toString() ?? '';  // ✅ Le numéro du créancier
+            clientName = displayCreditorName.isNotEmpty 
+                ? displayCreditorName
+                : (creditorPhone.isNotEmpty ? creditorPhone : (client != null ? client['name'] : '${AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact'} $clientId'));
+            clientPhone = creditorPhone.isNotEmpty ? creditorPhone : null;  // ✅ Stocker le phone séparement
+          } else {
+            // C'est une dette normale, afficher le nom du client
+            clientName = client != null ? client['name'] : (clientId == 'unknown' ? (AppSettings().boutiqueModeEnabled ? 'Clients inconnus' : 'Contacts inconnus') : '${AppSettings().boutiqueModeEnabled ? 'Client' : 'Contact'} $clientId');
+            clientPhone = client?['phone']; // ✅ Stocker le phone client aussi
+          }
 
           // Calculer le total : ne prendre que la dette la plus récente pour le couple (client,type)
           double totalRemaining = 0.0;
@@ -2405,23 +2391,43 @@ final choice = await showModalBottomSheet<String>(
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // ✅ NOM ÉLÉGANT (EN HAUT) - style titre
                               Text(
-                                clientName.toString().toUpperCase(),
+                                clientName.toString(),
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
                                   color: textColor,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
-                              if (client != null && (client['client_number'] ?? '').toString().isNotEmpty)
-                                const SizedBox(height: 4),
-                              if (client != null && (client['client_number'] ?? '').toString().isNotEmpty)
-                                Text(
-                                  client['client_number'].toString(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: textColorSecondary,
+                              // ✅ NUMÉRO EN BAS - minimaliste et discret
+                              if (clientPhone != null && clientPhone.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    clientPhone,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textColorSecondary.withOpacity(0.65),
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                )
+                              else if (client != null && (client['phone'] ?? '').toString().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    client['phone'].toString(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textColorSecondary.withOpacity(0.65),
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
                             ],
