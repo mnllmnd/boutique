@@ -241,7 +241,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _tabIndex = 0;
   String _debtSubTab = 'prets'; // 'prets' ou 'emprunts'
   List debts = [];
@@ -262,6 +262,7 @@ class _HomePageState extends State<HomePage> {
   String boutiqueName = '';
   StreamSubscription<ConnectivityResult>? _connSub;
   bool _isSyncing = false;
+  late AnimationController _pulseController;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -274,6 +275,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Initialiser le contrôleur d'animation pulse
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat();
+    
     _loadBoutique();
     fetchClients();
     fetchDebts();
@@ -319,6 +326,7 @@ class _HomePageState extends State<HomePage> {
     _searchFocus.dispose();
     _debounceTimer?.cancel();
     _connSub?.cancel();
+    _pulseController.dispose();
     
     // ✨ Shutdown HiveServiceManager
     _shutdownHive();
@@ -1798,6 +1806,26 @@ final choice = await showModalBottomSheet<String>(
                                               padding: EdgeInsets.only(left: 4),
                                               child: Icon(Icons.check_circle, size: 12, color: Colors.orange),
                                             ),
+                                          // ✨ Petit indicateur pulse subtle quand actif
+                                          if (_debtSubTab == 'prets' && totalPrets > 0)
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 6),
+                                              child: ScaleTransition(
+                                                scale: Tween(begin: 0.8, end: 1.2)
+                                                    .animate(CurvedAnimation(
+                                                      parent: _pulseController,
+                                                      curve: Curves.easeInOut,
+                                                    )),
+                                                child: Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: Colors.orange.withOpacity(0.6),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
@@ -1872,6 +1900,26 @@ final choice = await showModalBottomSheet<String>(
                                             const Padding(
                                               padding: EdgeInsets.only(left: 4),
                                               child: Icon(Icons.check_circle, size: 12, color: Colors.purple),
+                                            ),
+                                          // ✨ Petit indicateur pulse subtle quand actif
+                                          if (_debtSubTab == 'emprunts' && totalEmprunts > 0)
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 6),
+                                              child: ScaleTransition(
+                                                scale: Tween(begin: 0.8, end: 1.2)
+                                                    .animate(CurvedAnimation(
+                                                      parent: _pulseController,
+                                                      curve: Curves.easeInOut,
+                                                    )),
+                                                child: Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: Colors.purple.withOpacity(0.6),
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                         ],
                                       ),
