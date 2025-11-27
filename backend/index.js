@@ -6,6 +6,7 @@ const debtsRouter = require('./routes/debts');
 const clientsRouter = require('./routes/clients');
 const authRouter = require('./routes/auth');
 const teamRouter = require('./routes/team');
+const countriesRouter = require('./routes/countries');
 const pool = require('./db');
 const fs = require('fs');
 const path = require('path');
@@ -19,6 +20,7 @@ app.use('/api/debts', debtsRouter);
 app.use('/api/clients', clientsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/team', teamRouter);
+app.use('/api/countries', countriesRouter);
 
 // Endpoint for getting all additions by owner_phone (for Hive sync)
 app.get('/api/debt-additions', async (req, res) => {

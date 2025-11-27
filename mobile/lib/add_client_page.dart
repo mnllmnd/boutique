@@ -18,6 +18,44 @@ class _AddClientPageState extends State<AddClientPage> {
   final TextEditingController _nameCtl = TextEditingController();
   final TextEditingController _numberCtl = TextEditingController();
   bool _saving = false;
+  String? selectedCountryCode;
+  List<Map<String, dynamic>> countries = [];
+  bool loadingCountries = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
+
+  Future<void> _loadCountries() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiHost/countries'),
+      ).timeout(const Duration(seconds: 5));
+      
+      if (res.statusCode == 200) {
+        final List<dynamic> data = json.decode(res.body);
+        setState(() {
+          countries = List<Map<String, dynamic>>.from(
+            data.map((item) => {
+              'code': item['code'],
+              'country_name': item['country_name'],
+              'flag_emoji': item['flag_emoji'] ?? '',
+            })
+          );
+          // Défaut: Sénégal (221)
+          selectedCountryCode = '221';
+          loadingCountries = false;
+        });
+      } else {
+        setState(() => loadingCountries = false);
+      }
+    } catch (e) {
+      print('[COUNTRIES] Erreur chargement: $e');
+      setState(() => loadingCountries = false);
+    }
+  }
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -30,11 +68,21 @@ class _AddClientPageState extends State<AddClientPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (selectedCountryCode == null) {
+      _showMinimalSnackbar('Veuillez sélectionner un pays');
+      return;
+    }
+
     setState(() => _saving = true);
     try {
+      final phoneNumber = _numberCtl.text.trim();
+      final normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final fullPhone = '+$selectedCountryCode$normalizedPhone';
+      
       final body = {
         'name': _nameCtl.text.trim(),
-        'client_number': _numberCtl.text.trim(),
+        'client_number': fullPhone,
+        'country_code': selectedCountryCode,
       };
       final headers = {
         'Content-Type': 'application/json', 
@@ -225,6 +273,70 @@ class _AddClientPageState extends State<AddClientPage> {
                             ),
                             validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
                           ),
+
+                          const SizedBox(height: 48),
+
+                          // Country Selector
+                          Text(
+                            'PAYS', 
+                            style: TextStyle(
+                              fontSize: 11, 
+                              fontWeight: FontWeight.w600, 
+                              letterSpacing: 1.5, 
+                              color: textColorSecondary
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (loadingCountries)
+                            Container(
+                              height: 56,
+                              alignment: Alignment.center,
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: colors.primary,
+                                ),
+                              ),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              value: selectedCountryCode,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: borderColor, width: 0.5)
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: textColor, width: 1)
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                              items: countries.map((country) {
+                                return DropdownMenuItem<String>(
+                                  value: country['code'],
+                                  child: Row(
+                                    children: [
+                                      Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        '${country['country_name']} (+${country['code']})',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: textColor,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() => selectedCountryCode = value);
+                              },
+                            ),
 
                           const SizedBox(height: 48),
 

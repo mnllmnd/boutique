@@ -131,10 +131,10 @@ router.post('/login-phone', async (req, res) => {
 
 // Register owner with PIN (replaces password-based registration)
 router.post('/register-pin', async (req, res) => {
-  const { phone, pin, first_name, last_name, shop_name, device_id } = req.body;
+  const { phone, country_code, pin, first_name, last_name, shop_name, device_id } = req.body;
   
-  if (!phone || !pin) {
-    return res.status(400).json({ error: 'phone and pin required' });
+  if (!phone || !pin || !country_code) {
+    return res.status(400).json({ error: 'phone, country_code and pin required' });
   }
   
   if (pin.length !== 4 || !/^\d+$/.test(pin)) {
@@ -142,8 +142,12 @@ router.post('/register-pin', async (req, res) => {
   }
   
   try {
+    // ✅ NOUVEAU : Formater le numéro en +PAYS+NUMERO
+    const normalizedPhone = phone.replace(/[^0-9]/g, '');
+    const fullPhone = `+${country_code}${normalizedPhone}`;
+    
     // Check if phone or PIN already exists
-    const existingPhone = await pool.query('SELECT id FROM owners WHERE phone=$1', [phone]);
+    const existingPhone = await pool.query('SELECT id FROM owners WHERE phone=$1', [fullPhone]);
     if (existingPhone.rowCount > 0) {
       return res.status(409).json({ error: 'Phone number already registered' });
     }
@@ -156,14 +160,14 @@ router.post('/register-pin', async (req, res) => {
     const tokenExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
     
     const result = await pool.query(
-      'INSERT INTO owners (phone, pin, shop_name, first_name, last_name, auth_token, token_expires_at, token_created_at, device_id, last_login_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, NOW()) RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
-      [phone, hashedPin, shop_name || null, first_name || '', last_name || '', authToken, tokenExpiresAt, device_id || generateDeviceId()]
+      'INSERT INTO owners (phone, country_code, pin, shop_name, first_name, last_name, auth_token, token_expires_at, token_created_at, device_id, last_login_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, NOW()) RETURNING id, phone, shop_name, first_name, last_name, auth_token, boutique_mode_enabled',
+      [fullPhone, country_code, hashedPin, shop_name || null, first_name || '', last_name || '', authToken, tokenExpiresAt, device_id || generateDeviceId()]
     );
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    if (err.code === '23505') return res.status(409).json({ error: 'Owner already exists' });
+    if (err.code === '23505') return res.status(409).json({ error: 'Phone number already registered' });
     res.status(500).json({ error: 'DB error' });
   }
 });

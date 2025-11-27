@@ -34,6 +34,7 @@ class HiveClient {
   final int id;
   final String name;
   final String phone;
+  final String? countryCode;  // ✅ NOUVEAU
   final String ownerPhone;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -45,6 +46,7 @@ class HiveClient {
     required this.id,
     required this.name,
     required this.phone,
+    this.countryCode,  // ✅ NOUVEAU
     required this.ownerPhone,
     required this.createdAt,
     required this.updatedAt,
@@ -57,6 +59,7 @@ class HiveClient {
         id: json['id'] as int,
         name: json['name'] as String,
         phone: json['phone'] as String,
+        countryCode: json['country_code'] as String?,  // ✅ NOUVEAU
         ownerPhone: json['owner_phone'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -71,6 +74,7 @@ class HiveClient {
         'id': id,
         'name': name,
         'phone': phone,
+        'country_code': countryCode,  // ✅ NOUVEAU
         'owner_phone': ownerPhone,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
@@ -83,6 +87,7 @@ class HiveClient {
         'id': id,
         'name': name,
         'phone': phone,
+        'country_code': countryCode,  // ✅ NOUVEAU
         'owner_phone': ownerPhone,
       };
 
@@ -90,6 +95,7 @@ class HiveClient {
     int? id,
     String? name,
     String? phone,
+    String? countryCode,  // ✅ NOUVEAU
     String? ownerPhone,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -101,6 +107,7 @@ class HiveClient {
         id: id ?? this.id,
         name: name ?? this.name,
         phone: phone ?? this.phone,
+        countryCode: countryCode ?? this.countryCode,  // ✅ NOUVEAU
         ownerPhone: ownerPhone ?? this.ownerPhone,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,

@@ -18,6 +18,9 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
   late TextEditingController phoneCtl;
   late TextEditingController pinCtl;
   String? tempToken;
+  String? selectedCountryCode;
+  List<Map<String, dynamic>> countries = [];
+  bool loadingCountries = true;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -32,6 +35,7 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     super.initState();
     phoneCtl = TextEditingController();
     pinCtl = TextEditingController();
+    _loadCountries();
   }
 
   @override
@@ -39,6 +43,35 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     phoneCtl.dispose();
     pinCtl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCountries() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiHost/countries'),
+      ).timeout(const Duration(seconds: 5));
+      
+      if (res.statusCode == 200) {
+        final List<dynamic> data = json.decode(res.body);
+        setState(() {
+          countries = List<Map<String, dynamic>>.from(
+            data.map((item) => {
+              'code': item['code'],
+              'country_name': item['country_name'],
+              'flag_emoji': item['flag_emoji'] ?? '',
+            })
+          );
+          // Défaut: Sénégal (221)
+          selectedCountryCode = '221';
+          loadingCountries = false;
+        });
+      } else {
+        setState(() => loadingCountries = false);
+      }
+    } catch (e) {
+      print('[COUNTRIES] Erreur chargement: $e');
+      setState(() => loadingCountries = false);
+    }
   }
 
   Future _doQuickSignup() async {
@@ -49,12 +82,20 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
       return;
     }
 
+    if (selectedCountryCode == null) {
+      _showError('Veuillez sélectionner un pays');
+      return;
+    }
+
     setState(() => loading = true);
     try {
+      final normalizedPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      final fullPhone = '+$selectedCountryCode$normalizedPhone';
+      
       final res = await http.post(
         Uri.parse('$apiHost/auth/register-quick'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'phone': phone}),
+        body: json.encode({'phone': fullPhone, 'country_code': selectedCountryCode}),
       ).timeout(const Duration(seconds: 8));
       
       if (res.statusCode == 201) {
@@ -101,10 +142,13 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
   Future<void> _attemptAutoLogin(String phone) async {
     setState(() => loading = true);
     try {
+      final normalizedPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      final fullPhone = '+$selectedCountryCode$normalizedPhone';
+      
       final res = await http.post(
         Uri.parse('$apiHost/auth/login-phone'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'phone': phone}),
+        body: json.encode({'phone': fullPhone, 'country_code': selectedCountryCode}),
       ).timeout(const Duration(seconds: 8));
       
       if (res.statusCode == 200) {
@@ -436,6 +480,74 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
                     ],
                   ),
                   const SizedBox(height: 64),
+
+                  // Country Selector
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Pays', style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.5,
+                        color: colors.onSurface.withOpacity(0.5),
+                      )),
+                      const SizedBox(height: 12),
+                      if (loadingCountries)
+                        Container(
+                          width: double.infinity,
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: colors.primary,
+                            ),
+                          ),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          value: selectedCountryCode,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            border: UnderlineInputBorder(
+                              borderSide: BorderSide(color: colors.outline.withOpacity(0.2)),
+                            ),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: colors.outline.withOpacity(0.2)),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: colors.primary),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          items: countries.map((country) {
+                            return DropdownMenuItem<String>(
+                              value: country['code'],
+                              child: Row(
+                                children: [
+                                  Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '${country['country_name']} (+${country['code']})',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() => selectedCountryCode = value);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
 
                   // Phone Input
                   Column(

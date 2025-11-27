@@ -24,6 +24,11 @@ class _LoginPageState extends State<LoginPage> {
   late TextEditingController firstNameCtl;
   late TextEditingController lastNameCtl;
   late TextEditingController shopNameCtl;
+  
+  // ✅ NOUVEAU : Pays et liste de pays
+  String? selectedCountryCode;
+  List<Map<String, dynamic>> countries = [];
+  bool loadingCountries = true;
 
   String get apiHost {
     if (kIsWeb) return 'http://localhost:3000/api';
@@ -40,6 +45,9 @@ class _LoginPageState extends State<LoginPage> {
     firstNameCtl = TextEditingController();
     lastNameCtl = TextEditingController();
     shopNameCtl = TextEditingController();
+    
+    // ✅ NOUVEAU : Charger la liste des pays
+    _loadCountries();
   }
 
   @override
@@ -49,6 +57,32 @@ class _LoginPageState extends State<LoginPage> {
     lastNameCtl.dispose();
     shopNameCtl.dispose();
     super.dispose();
+  }
+
+  // ✅ NOUVEAU : Charger la liste des pays
+  Future<void> _loadCountries() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiHost/countries'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 8));
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as List;
+        setState(() {
+          countries = List<Map<String, dynamic>>.from(data);
+          loadingCountries = false;
+          // Sélectionner Sénégal par défaut (code 221)
+          selectedCountryCode = '221';
+        });
+      } else {
+        setState(() => loadingCountries = false);
+        print('Error loading countries: ${res.statusCode}');
+      }
+    } catch (e) {
+      setState(() => loadingCountries = false);
+      print('Error loading countries: $e');
+    }
   }
 
   Future _doLogin() async {
@@ -99,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future _doSignup() async {
-    if (phoneCtl.text.isEmpty || firstNameCtl.text.isEmpty || lastNameCtl.text.isEmpty || pin.isEmpty) {
+    if (phoneCtl.text.isEmpty || firstNameCtl.text.isEmpty || lastNameCtl.text.isEmpty || pin.isEmpty || selectedCountryCode == null) {
       await _showMinimalDialog('Erreur', 'Veuillez remplir tous les champs.');
       return;
     }
@@ -111,8 +145,14 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => loading = true);
     try {
+      // ✅ NOUVEAU : Formater le numéro en +PAYS+NUMERO
+      final phoneNumber = phoneCtl.text.trim();
+      final normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      final fullPhone = '+$selectedCountryCode$normalizedPhone';
+      
       final body = {
-        'phone': phoneCtl.text.trim(),
+        'phone': fullPhone,
+        'country_code': selectedCountryCode,
         'pin': pin,
         'first_name': firstNameCtl.text.trim(),
         'last_name': lastNameCtl.text.trim(),
@@ -418,12 +458,48 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
 
+                        // ✅ NOUVEAU : Sélecteur de pays
+                        if (loadingCountries)
+                          const Center(child: CircularProgressIndicator())
+                        else
+                          DropdownButtonFormField<String>(
+                            value: selectedCountryCode,
+                            decoration: InputDecoration(
+                              labelText: 'Pays',
+                              border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
+                              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
+                              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            style: TextStyle(color: textColor, fontSize: 15),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedCountryCode = value;
+                              });
+                            },
+                            items: countries.map((country) {
+                              return DropdownMenuItem<String>(
+                                value: country['code'],
+                                child: Row(
+                                  children: [
+                                    Text(country['flag_emoji'] ?? '🌍'),
+                                    const SizedBox(width: 8),
+                                    Text('${country['country_name']} (+${country['code']})'),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        const SizedBox(height: 16),
+
                         TextField(
                           controller: phoneCtl,
                           keyboardType: TextInputType.phone,
                           style: TextStyle(color: textColor, fontSize: 15),
                           decoration: InputDecoration(
-                            labelText: 'Téléphone',
+                            labelText: 'Numéro de téléphone',
+                            hintText: 'Ex: 771234567',
                             border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),

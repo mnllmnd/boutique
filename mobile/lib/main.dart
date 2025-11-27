@@ -1129,15 +1129,34 @@ double _clientTotalRemaining(dynamic clientId) {
     return 'C';
   }
 
+  // ✅ NOUVEAU : Générer une couleur stable et subtile basée sur le nom du client
+  Color _getAvatarColor(dynamic client) {
+    final clientName = _getClientName(client);
+    final hash = clientName.hashCode;
+    
+    // Palette de couleurs subtiles et minimalistes
+    const colors = [
+      Color(0xFF6B5B95),  // Violet subtil
+      Color(0xFF88A86C),  // Vert sage
+      Color(0xFF9B8B7E),  // Taupe
+      Color(0xFF7B9DBE),  // Bleu gris
+      Color(0xFFA69B84),  // Beige
+      Color(0xFF8B7F9A),  // Lavande
+      Color(0xFF7F9F9D),  // Teal subtil
+      Color(0xFF9B8B70),  // Ocre
+    ];
+    
+    return colors[hash.abs() % colors.length];
+  }
+
   Widget _buildInitialsAvatar(String initials, double size) {
     return Center(
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+      child: Icon(
+        Icons.person_rounded,
+        size: size * 0.55,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.55)
+            : Colors.black.withOpacity(0.45),
       ),
     );
   }
@@ -1146,16 +1165,17 @@ double _clientTotalRemaining(dynamic clientId) {
     final hasAvatar = client != null && client['avatar_url'] != null && client['avatar_url'].toString().isNotEmpty;
     final clientName = _getClientName(client);
     final initials = _getInitials(clientName);
+    final avatarColor = _getAvatarColor(client);
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+        color: avatarColor.withOpacity(0.12),  // ✅ Fond très subtil
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.26),
-          width: 2,
+          color: avatarColor.withOpacity(0.25),  // ✅ Bordure subtile
+          width: 1.5,
         ),
       ),
       child: hasAvatar

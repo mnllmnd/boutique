@@ -39,10 +39,6 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
   // États pour masquer/afficher les sections
   bool _showAllHistory = false;
   
-  // Pour le refresh automatique
-  final int _autoRefreshInterval = 2000; // 2 secondes
-  Timer? _refreshTimer;
-  
   // ✅ NOUVEAU : TabBar Controller
   late TabController _tabController;
 
@@ -66,12 +62,12 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     _appSettings = AppSettings();
     _appSettings.addListener(_onAppSettingsChanged);
     _loadAllData();
-    _startAutoRefresh();
+    // 🔴 DÉSACTIVÉ : Auto-refresh toutes les 2 secondes était trop agressif
+    // _startAutoRefresh();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _tabController.dispose(); // ✅ NOUVEAU : Disposer du TabController
     _appSettings.removeListener(_onAppSettingsChanged); // ✅ NOUVEAU : Retirer le listener
     _audioService.dispose();
@@ -84,15 +80,6 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
       setState(() {}); // Reconstruire le widget avec la nouvelle devise
     }
   }
-
-  void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(Duration(milliseconds: _autoRefreshInterval), (timer) {
-      if (mounted) {
-        _loadAllData(silent: true);
-      }
-    });
-  }
-
   // 🆕 Fonction helper pour déterminer le terme "Client" ou "Contact"
   String _getTermClient() {
     return AppSettings().boutiqueModeEnabled ? 'client' : 'contact';
@@ -473,21 +460,42 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     
     return null;
   }
+  // ✅ NOUVEAU : Générer une couleur stable et subtile basée sur le nom du client
+  Color _getAvatarColor(dynamic client) {
+    final clientName = _getClientName(client);
+    final hash = clientName.hashCode;
+    
+    // Palette de couleurs subtiles et minimalistes
+    const colors = [
+      Color(0xFF6B5B95),  // Violet subtil
+      Color(0xFF88A86C),  // Vert sage
+      Color(0xFF9B8B7E),  // Taupe
+      Color(0xFF7B9DBE),  // Bleu gris
+      Color(0xFFA69B84),  // Beige
+      Color(0xFF8B7F9A),  // Lavande
+      Color(0xFF7F9F9D),  // Teal subtil
+      Color(0xFF9B8B70),  // Ocre
+    ];
+    
+    return colors[hash.abs() % colors.length];
+  }
+
   Widget _buildClientAvatar() {
     final hasAvatar = _client?['avatar_url'] != null && 
                      _client!['avatar_url'].toString().isNotEmpty;
     final clientName = _getClientName(_client);
     final initials = _getInitials(clientName);
+    final avatarColor = _getAvatarColor(_client);
     
     return Container(
       width: 60,
       height: 60,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        color: avatarColor.withOpacity(0.12),  // ✅ Fond très subtil
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 2,
+          color: avatarColor.withOpacity(0.25),  // ✅ Bordure subtile
+          width: 1.5,
         ),
       ),
       child: hasAvatar
@@ -506,13 +514,12 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
 
   Widget _buildInitialsAvatar(String initials) {
     return Center(
-      child: Text(
-        initials,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+      child: Icon(
+        Icons.person_rounded,
+        size: 32,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.55)
+            : Colors.black.withOpacity(0.45),
       ),
     );
   }
@@ -1683,6 +1690,154 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     );
   }
 
+  // ✅ NOUVEAU : Dialog pour ajouter dans les contacts avec nom custom
+  void _showAddContactDialog(String defaultName) {
+    final nameCtl = TextEditingController(text: defaultName);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final textColorSecondary = isDark ? Colors.white70 : Colors.black54;
+    final borderColor = isDark ? Colors.white24 : Colors.black26;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'AJOUTER DANS MES CONTACTS',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Choisissez le nom que vous voulez utiliser',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w300,
+                  color: textColorSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtl,
+                style: TextStyle(fontSize: 14, color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Ex: Papa, Papeeeee...',
+                  hintStyle: TextStyle(color: borderColor),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: borderColor, width: 0.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blue, width: 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: textColorSecondary,
+                    ),
+                    child: const Text('ANNULER'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _addContactFromDebt(nameCtl.text.trim());
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                    child: const Text('AJOUTER'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✅ NOUVEAU : Ajouter le créancier comme contact
+  Future<void> _addContactFromDebt(String customName) async {
+    if (_debt['creditor_phone'] == null || _debt['creditor_phone'].toString().isEmpty) {
+      _showSnackbar('Numéro de créancier introuvable');
+      return;
+    }
+
+    try {
+      final body = {
+        'name': customName.isNotEmpty ? customName : _debt['display_creditor_name'] ?? _debt['creditor_phone'],
+        'client_number': _debt['creditor_phone'],
+      };
+      final headers = {
+        'Content-Type': 'application/json',
+        'x-owner': widget.ownerPhone,
+      };
+
+      final res = await http.post(
+        Uri.parse('$apiHost/clients'),
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        final data = json.decode(res.body);
+        _showSnackbar('Contact ajouté avec succès');
+        
+        // ✅ Mettre à jour le nom affiché en temps réel
+        setState(() {
+          _debt['display_creditor_name'] = customName.isNotEmpty ? customName : _debt['display_creditor_name'];
+          _client = data;
+        });
+        
+        // Recharger les données
+        await _loadAllData();
+        
+        // ✅ Redémarrer le refresh automatique (DÉSACTIVÉ)
+        // _startAutoRefresh();
+      } else {
+        _showSnackbar('Erreur lors de l\'ajout du contact');
+      }
+    } catch (e) {
+      _showSnackbar('Erreur: $e');
+    }
+  }
+
+  // ✅ NOUVEAU : Afficher un snackbar
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -1807,7 +1962,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                 controller: _tabController,
                 children: [
                   // ✅ TAB 1 : PRÊT / EMPRUNT (Actions rapides + Solde)
-                  _buildMainTab(context, remaining, amount, totalPaid, progress, dueDate, displayName, displayPhone, isPret, textColor, textColorSecondary, borderColor),
+                  _buildMainTab(context, remaining, amount, totalPaid, progress, dueDate, displayName, displayPhone, isPret, textColor, textColorSecondary, borderColor, createdByOther),
                   
                   // ✅ TAB 2 : DÉTAILS (Notes + Historique)
                   _buildDetailsTab(context, textColor, textColorSecondary, borderColor),
@@ -1833,6 +1988,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
     Color textColor,
     Color textColorSecondary,
     Color borderColor,
+    bool createdByOther,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -2097,6 +2253,41 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
               ),
             ],
           ),
+          
+          // ✅ NOUVEAU : Bouton "Ajouter dans mes contacts" si créé par quelqu'un d'autre
+          if (createdByOther && (_client == null || _client?.isEmpty == true))
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextButton.icon(
+                  onPressed: () => _showAddContactDialog(displayName),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    visualDensity: VisualDensity.standard,
+                  ),
+                  icon: const Icon(
+                    Icons.person_add,
+                    size: 18,
+                    color: Colors.blue,
+                  ),
+                  label: const Text(
+                    'AJOUTER DANS MES CONTACTS',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           
           // ✅ NOUVEAU : Message si remboursement complet
           if (remaining <= 0)
