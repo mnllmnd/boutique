@@ -908,8 +908,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }).toList();
         }
 
-        // Pour garantir la cohérence avec `DebtDetailsPage`, récupérer les paiements
-        // pour chaque dette consolidée et recalculer `remaining` = amount - sum(payments).
+        // Pour garantir la cohérence avec `DebtDetailsPage`, récupérer les paiements ET additions
+        // pour chaque dette consolidée et recalculer `remaining` = (amount + additions) - sum(payments).
         try {
           final List<Future<void>> jobs = [];
           for (final debt in consolidatedDebts) {
@@ -917,19 +917,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               try {
                 final id = debt['id'];
                 if (id == null) return;
-                final resp = await http.get(
+                
+                // Récupérer paiements ET additions en parallèle
+                final paymentsFuture = http.get(
                   Uri.parse('$apiHost/debts/$id/payments'),
                   headers: headers,
                 ).timeout(const Duration(seconds: 8));
-                if (resp.statusCode == 200) {
-                  final paymentsList = json.decode(resp.body) as List;
-                  // Recalculer remaining à l'identique de DebtDetailsPage
+                
+                final additionsFuture = http.get(
+                  Uri.parse('$apiHost/debts/$id/additions'),
+                  headers: headers,
+                ).timeout(const Duration(seconds: 8));
+                
+                final responses = await Future.wait([paymentsFuture, additionsFuture]);
+                
+                // Traiter les additions d'abord
+                if (responses[1].statusCode == 200) {
+                  final additionsList = json.decode(responses[1].body) as List;
+                  // Calculer et stocker le total des additions
+                  double totalAdditions = 0.0;
+                  for (final addition in additionsList) {
+                    totalAdditions += _parseDouble(addition['amount']);
+                  }
+                  debt['total_additions'] = totalAdditions;
+                }
+                
+                // Puis recalculer remaining avec paiements + additions
+                if (responses[0].statusCode == 200) {
+                  final paymentsList = json.decode(responses[0].body) as List;
+                  // Recalculer remaining : (amount + additions) - payments
                   final newRem = _calculateRemainingFromPayments(debt, paymentsList);
                   debt['remaining'] = newRem;
-                  debt['_payments'] = paymentsList; // debug/diagnostic
                 }
               } catch (_) {
-                // ignore payment fetch errors - on garde le remaining fourni par l'API
+                // ignore fetch errors - on garde le remaining fourni par l'API
               }
             }());
           }
@@ -987,15 +1008,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return 0.0;
   }
 
-  // Calculer remaining exactement comme dans DebtDetailsPage: amount - sum(payments)
+  // Calculer remaining exactement comme dans DebtDetailsPage: (amount + additions) - sum(payments)
   double _calculateRemainingFromPayments(Map debt, List paymentList) {
     try {
-      final debtAmount = _parseDouble(debt['amount']);
+      // ✅ CORRIGÉ : Inclure les additions dans le calcul
+      final baseAmount = _parseDouble(debt['amount']);
+      final totalAdditions = _parseDouble(debt['total_additions'] ?? 0.0);
+      final totalDebtAmount = baseAmount + totalAdditions;
+      
       double totalPaid = 0.0;
       for (final payment in paymentList) {
         totalPaid += _parseDouble(payment['amount']);
       }
-      return debtAmount - totalPaid;
+      return (totalDebtAmount - totalPaid).clamp(0.0, double.infinity);
     } catch (_) {
       return 0.0;
     }

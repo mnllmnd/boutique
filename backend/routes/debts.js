@@ -1097,12 +1097,13 @@ router.post('/:id/disputes', async (req, res) => {
 });
 
 // ✅ NOUVEAU : Récupérer les contestations d'une dette
+// ✅ CORRIGÉ : Récupérer les contestations d'une dette AVEC le nom du disputant
 router.get('/:id/disputes', async (req, res) => {
   const { id } = req.params;
   try {
     const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
     
-    // Vérifier que la dette existe et appartient à l'utilisateur - soit creditor soit client (via client_number)
+    // Vérifier que la dette existe et appartient à l'utilisateur
     const debtRes = await pool.query(
       `SELECT d.* FROM debts d
        LEFT JOIN clients c ON d.client_id = c.id
@@ -1111,10 +1112,36 @@ router.get('/:id/disputes', async (req, res) => {
     );
     if (debtRes.rowCount === 0) return res.status(404).json({ error: 'Debt not found' });
     
-    // Récupérer les contestations
+    // ✅ CORRECTION: PRIORITÉ AU CONTACT LOCAL
     const result = await pool.query(
-      `SELECT * FROM debt_disputes WHERE debt_id=$1 ORDER BY created_at DESC`,
-      [id]
+      `SELECT 
+         dd.*,
+         -- Priorité 1: Nom dans mes contacts (CE QUE JE VOULAIS!)
+         c.name as contact_name,
+         -- Priorité 2: Nom officiel du owner
+         CASE 
+           WHEN o.shop_name IS NOT NULL AND o.shop_name != '' THEN o.shop_name
+           WHEN o.first_name IS NOT NULL OR o.last_name IS NOT NULL THEN 
+             COALESCE(o.first_name || ' ', '') || COALESCE(o.last_name, '')
+           ELSE NULL
+         END as official_name,
+         -- Nom final à afficher - CONTACT LOCAL EN PREMIER!
+         COALESCE(
+           c.name,  -- ← "mama" (nom que J'AI choisi)
+           CASE 
+             WHEN o.shop_name IS NOT NULL AND o.shop_name != '' THEN o.shop_name
+             WHEN o.first_name IS NOT NULL OR o.last_name IS NOT NULL THEN 
+               COALESCE(o.first_name || ' ', '') || COALESCE(o.last_name, '')
+             ELSE NULL
+           END,
+           dd.disputed_by
+         ) as disputed_by_display_name
+       FROM debt_disputes dd
+       LEFT JOIN owners o ON dd.disputed_by = o.phone
+       LEFT JOIN clients c ON (dd.disputed_by = c.client_number AND c.owner_phone = $2)
+       WHERE dd.debt_id = $1 
+       ORDER BY dd.created_at DESC`,
+      [id, owner]
     );
     
     res.json(result.rows);
