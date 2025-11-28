@@ -260,7 +260,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Timer? _debounceTimer;
   final Set<dynamic> _expandedClients = {};
   String boutiqueName = '';
-  StreamSubscription<ConnectivityResult>? _connSub;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
   bool _isSyncing = false;
   late AnimationController _pulseController;
 
@@ -344,19 +344,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<void> _startConnectivityListener() async {
-    try {
-      final conn = await Connectivity().checkConnectivity();
-      if (conn != ConnectivityResult.none) {
-        _triggerSync();
-      }
-    } catch (_) {}
+  try {
+    final List<ConnectivityResult> conn = await Connectivity().checkConnectivity();
+    if (_hasConnection(conn)) {
+      _triggerSync();
+    }
+  } catch (_) {}
 
-    _connSub = Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
-        _triggerSync();
-      }
-    });
-  }
+  _connSub = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    if (_hasConnection(results)) {
+      _triggerSync();
+    }
+  });
+}
+
+bool _hasConnection(List<ConnectivityResult> results) {
+  return results.isNotEmpty && 
+         results.any((result) => result != ConnectivityResult.none);
+}
 
   Future<void> _showClientActions(dynamic client, dynamic clientId) async {
     if (client == null) return;

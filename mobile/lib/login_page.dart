@@ -463,7 +463,7 @@ class _LoginPageState extends State<LoginPage> {
                           const Center(child: CircularProgressIndicator())
                         else
                           DropdownButtonFormField<String>(
-                            value: selectedCountryCode,
+                            initialValue: selectedCountryCode,
                             decoration: InputDecoration(
                               labelText: 'Pays',
                               border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),

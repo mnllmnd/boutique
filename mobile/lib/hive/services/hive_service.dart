@@ -27,7 +27,7 @@ class HiveService {
 
   // Connectivity
   late Connectivity _connectivity;
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription; // ✅ CORRIGÉ
   bool _isOnline = true;
 
   // Sync status
@@ -52,8 +52,8 @@ class HiveService {
           _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
 
       // Vérifier la connectivité initiale
-      final result = await _connectivity.checkConnectivity();
-      _isOnline = result != ConnectivityResult.none;
+      final List<ConnectivityResult> results = await _connectivity.checkConnectivity(); // ✅ CORRIGÉ
+      _isOnline = results.isNotEmpty && results[0] != ConnectivityResult.none; // ✅ CORRIGÉ
 
       // Initialiser ou récupérer le statut de sync
       _initSyncStatus(ownerPhone);
@@ -84,8 +84,8 @@ class HiveService {
     }
   }
 
-  void _onConnectivityChanged(ConnectivityResult result) {
-    _isOnline = result != ConnectivityResult.none;
+  void _onConnectivityChanged(List<ConnectivityResult> results) { // ✅ CORRIGÉ
+    _isOnline = results.isNotEmpty && results[0] != ConnectivityResult.none; // ✅ CORRIGÉ
     print('Connectivity changed: ${_isOnline ? 'Online' : 'Offline'}');
 
     // Déclencher la synchronisation si on est en ligne

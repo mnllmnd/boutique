@@ -508,7 +508,7 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
                         )
                       else
                         DropdownButtonFormField<String>(
-                          value: selectedCountryCode,
+                          initialValue: selectedCountryCode,
                           isExpanded: true,
                           decoration: InputDecoration(
                             border: UnderlineInputBorder(

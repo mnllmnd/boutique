@@ -302,7 +302,7 @@ class _AddClientPageState extends State<AddClientPage> {
                             )
                           else
                             DropdownButtonFormField<String>(
-                              value: selectedCountryCode,
+                              initialValue: selectedCountryCode,
                               isExpanded: true,
                               decoration: InputDecoration(
                                 border: const OutlineInputBorder(borderSide: BorderSide(width: 0.5)),

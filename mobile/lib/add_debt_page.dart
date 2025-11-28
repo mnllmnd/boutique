@@ -207,7 +207,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                       )
                     else if (countries.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: selectedCountryCode,
+                        initialValue: selectedCountryCode,
                         isExpanded: true,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(borderSide: BorderSide(color: borderColor, width: 0.5)),

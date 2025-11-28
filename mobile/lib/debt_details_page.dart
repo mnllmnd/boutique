@@ -7,12 +7,12 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
-import 'dart:html' as html;
 
 import 'add_payment_page.dart';
 import 'add_addition_page.dart';
 import 'data/audio_service.dart';
 import 'app_settings.dart';
+import 'utils/pdf_handler.dart';
 import 'dart:async';
 
 class DebtDetailsPage extends StatefulWidget {
@@ -1588,12 +1588,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
 
       if (kIsWeb) {
         // Sur le web, télécharger directement
-        final blob = html.Blob([pdfBytes], 'application/pdf');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..click();
-        html.Url.revokeObjectUrl(url);
+        await downloadPdfOnWeb(pdfBytes, fileName);
 
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
