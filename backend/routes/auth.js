@@ -28,10 +28,20 @@ router.post('/register-quick', async (req, res) => {
     return res.status(400).json({ error: 'phone and country_code required' });
   }
   
+  // ✅ Valider que le téléphone ne contient que des chiffres
+  if (!/^\d+$/.test(phone)) {
+    return res.status(400).json({ error: 'Phone must contain only digits' });
+  }
+  
+  // ✅ Valider la longueur (8-15 chiffres généralement)
+  if (phone.length < 8 || phone.length > 15) {
+    return res.status(400).json({ error: 'Phone length must be between 8 and 15 digits' });
+  }
+  
   try {
-    // ✅ Normalize phone number: remove all non-digits, then format as +COUNTRY_CODE+NUMBER
-    const normalizedNumber = phone.replace(/[^0-9]/g, '');
-    const fullPhone = `+${country_code}${normalizedNumber}`;
+    // ✅ Le frontend envoie déjà le numéro formaté (+PAYS+NUMERO)
+    // Juste utiliser le phone tel quel, sans reformatage
+    const fullPhone = phone;
     
     // Check if phone already exists
     const existingOwner = await pool.query(

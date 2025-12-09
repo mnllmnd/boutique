@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'app_settings.dart';
 import 'package:boutique_mobile/config/api_config.dart';
 import 'services/pin_auth_offline_service.dart';
@@ -73,6 +73,18 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     
     if (phone.isEmpty) {
       _showError('Veuillez entrer votre numéro');
+      return;
+    }
+
+    // ✅ Valider que seuls des chiffres sont présents
+    if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
+      _showError('Le numéro ne doit contenir que des chiffres');
+      return;
+    }
+
+    // ✅ Valider la longueur (généralement 9-13 chiffres selon le pays)
+    if (phone.length < 8 || phone.length > 15) {
+      _showError('Le numéro doit avoir entre 8 et 15 chiffres');
       return;
     }
 
@@ -556,7 +568,14 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: phoneCtl,
-                        keyboardType: TextInputType.phone,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly, // ✅ Accepte UNIQUEMENT les chiffres
+                        ],
+                        onChanged: (value) {
+                          // ✅ Format automatique selon le pays (ex: 77 123 45 67 pour Sénégal)
+                          setState(() {});
+                        },
                         style: TextStyle(
                           fontSize: 16, 
                           color: colors.onSurface,
@@ -564,7 +583,7 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
                           letterSpacing: 0.5,
                         ),
                         decoration: InputDecoration(
-                          hintText: '77 123 45 67',
+                          hintText: selectedCountryCode == '221' ? '77 123 45 67' : 'Numéro local',
                           border: UnderlineInputBorder(
                             borderSide: BorderSide(color: colors.outline.withOpacity(0.2)),
                           ),
@@ -578,6 +597,14 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
                           hintStyle: TextStyle(
                             color: colors.onSurface.withOpacity(0.3),
                             fontWeight: FontWeight.w300,
+                          ),
+                          // ✅ Afficher la longueur attendue
+                          helperText: phoneCtl.text.isNotEmpty 
+                            ? '${phoneCtl.text.length} chiffres'
+                            : 'Chiffres uniquement',
+                          helperStyle: TextStyle(
+                            fontSize: 11,
+                            color: colors.onSurface.withOpacity(0.4),
                           ),
                         ),
                       ),
