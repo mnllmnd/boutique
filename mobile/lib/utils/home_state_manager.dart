@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 /// 🏠 Gestionnaire d'état pour la HomePage
 class HomePageStateManager {

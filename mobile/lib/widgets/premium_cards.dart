@@ -436,7 +436,7 @@ class PremiumStatusSection extends StatelessWidget {
             );
           }
           return _buildStatItem(context, e.value);
-        }).toList(),
+        }),
       ],
     );
   }

@@ -126,7 +126,7 @@ class PremiumAppBar extends StatelessWidget implements PreferredSizeWidget {
                             return const SizedBox(width: 12);
                           }
                           return e.value;
-                        }).toList(),
+                        }),
                       ],
                     ),
                 ],
