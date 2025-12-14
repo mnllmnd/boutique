@@ -1,21 +1,6 @@
 {
-  "version": 2,
-
-  "builds": [
-    {
-      "src": "backend/index.js",
-      "use": "@vercel/node"
-    }
-  ],
-
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  "public": "build/web",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
