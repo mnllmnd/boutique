@@ -46,6 +46,52 @@ String fmtFCFA(dynamic v) {
   }
 }
 
+// ✅ Helper pour formater les dates d'échéance avec emoji et couleur
+Map<String, dynamic> _formatDueDate(dynamic dateStr) {
+  if (dateStr == null) {
+    return {'text': '-', 'color': Colors.grey, 'icon': Icons.calendar_today};
+  }
+  
+  try {
+    final dt = DateTime.parse(dateStr.toString());
+    final now = DateTime.now();
+    final difference = dt.difference(now);
+    final days = difference.inDays;
+    
+    if (days < 0) {
+      return {
+        'text': 'EN RETARD (${days.abs()}j)',
+        'color': Colors.red,
+        'icon': Icons.warning_rounded,
+        'emoji': '⚠️'
+      };
+    } else if (days == 0) {
+      return {
+        'text': 'AUJOURD\'HUI',
+        'color': Colors.orange,
+        'icon': Icons.today,
+        'emoji': '📅'
+      };
+    } else if (days <= 7) {
+      return {
+        'text': 'DANS $days JOUR${days > 1 ? 'S' : ''}',
+        'color': Colors.orange,
+        'icon': Icons.schedule,
+        'emoji': '⏰'
+      };
+    } else {
+      return {
+        'text': DateFormat('dd/MM/yyyy').format(dt),
+        'color': Colors.blue,
+        'icon': Icons.calendar_today,
+        'emoji': '📆'
+      };
+    }
+  } catch (_) {
+    return {'text': '-', 'color': Colors.grey, 'icon': Icons.calendar_today};
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
@@ -2234,17 +2280,19 @@ final choice = await showModalBottomSheet<String>(
                                   color: textColor,
                                   letterSpacing: 0.3,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               // ✅ NUMÉRO EN BAS - beau et lisible avec badge
                               // N'afficher le numéro que s'il n'existe pas dans les contacts
                               if (clientPhone != null && clientPhone.isNotEmpty && client == null)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 6),
+                                  padding: const EdgeInsets.only(top: 4),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(3),
                                       border: Border.all(
                                         color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
                                         width: 0.5,
@@ -2253,13 +2301,46 @@ final choice = await showModalBottomSheet<String>(
                                     child: Text(
                                       clientPhone,
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10,
                                         color: Theme.of(context).colorScheme.primary,
                                         fontWeight: FontWeight.w500,
-                                        letterSpacing: 0.3,
+                                        letterSpacing: 0.2,
                                         fontFamily: 'monospace',
                                       ),
                                     ),
+                                  ),
+                                ),
+                              // ✅ NOUVEAU : Date de remboursement avec emoji et couleur
+                              if (clientDebts.isNotEmpty && clientDebts.first['due_date'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Builder(
+                                    builder: (_) {
+                                      final dueInfo = _formatDueDate(clientDebts.first['due_date']);
+                                      return Row(
+                                        children: [
+                                          Icon(
+                                            dueInfo['icon'] as IconData,
+                                            size: 12,
+                                            color: dueInfo['color'] as Color,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              dueInfo['text'] as String,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: dueInfo['color'] as Color,
+                                                letterSpacing: 0.2,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 ),
                             ],

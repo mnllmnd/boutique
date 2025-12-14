@@ -2115,68 +2115,89 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                 const SizedBox(height: 20),
                 
                 // ✅ SECTION CORRIGÉE : Progression avec "JE DOIS"
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            isPret ? 'ENCAISSÉ' : 'REMBOURSÉ',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1,
-                              color: textColorSecondary,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isPret ? 'ENCAISSÉ' : 'REMBOURSÉ',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1,
+                                    color: textColorSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _fmtAmount(totalPaid),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _fmtAmount(totalPaid),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.primary,
+                          Container(
+                            width: 1,
+                            height: 45,
+                            color: borderColor,
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  remaining < 0 ? 'JE DOIS' : (isPret ? 'RESTE' : 'RESTE'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1,
+                                    color: textColorSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  remaining < 0 
+                                      ? _fmtAmount(remaining.abs())
+                                      : _fmtAmount(remaining),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: remaining < 0 ? Colors.purple : (remaining <= 0 ? Colors.green : Colors.red),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            remaining < 0 ? 'JE DOIS' : (isPret ? 'RESTE' : 'RESTE'),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1,
-                              color: textColorSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            remaining < 0 
-                                ? '${_fmtAmount(remaining.abs())} au client'
-                                : _fmtAmount(remaining),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: remaining < 0 ? Colors.purple : (remaining <= 0 ? Colors.green : Colors.red),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 14),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Theme.of(context).dividerColor.withOpacity(0.2),
+                          color: remaining <= 0 ? Colors.green : Theme.of(context).colorScheme.primary,
+                          minHeight: 5,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Theme.of(context).dividerColor.withOpacity(0.3),
-                  color: remaining <= 0 ? Colors.green : Theme.of(context).colorScheme.primary,
-                  minHeight: 6,
+                    ],
+                  ),
                 ),
               ],
             ),
