@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'app_settings.dart';
 import 'services/pin_auth_offline_service.dart';
 import 'package:boutique_mobile/config/api_config.dart';
