@@ -1,7 +1,0 @@
-{
-  "buildCommand": "echo 'Build done'",
-  "outputDirectory": "mobile/build/web",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
