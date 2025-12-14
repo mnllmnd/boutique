@@ -13,16 +13,20 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "stable"
+          channel: 'stable'
 
       - name: Enable web
         run: flutter config --enable-web
 
-      - name: Build web
+      - name: Get dependencies
         run: |
           cd mobile
           flutter pub get
-          flutter build web --release
+
+      - name: Build web
+        run: |
+          cd mobile
+          flutter build web --release --no-strip
 
       - name: Commit and push build
         run: |
@@ -30,4 +34,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add mobile/build/web
           git commit -m "Build: Flutter web build [skip ci]" || echo "No changes to commit"
-          git push origin main
+          git push origin main || echo "Push failed"
