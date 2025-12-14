@@ -1,15 +1,12 @@
 {
   "version": 2,
-  "builds": [
+  "public": true,
+  "buildCommand": "flutter build web --release",
+  "outputDirectory": "build/web",
+  "rewrites": [
     {
-      "src": "build/web",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
