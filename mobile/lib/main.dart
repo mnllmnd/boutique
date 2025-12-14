@@ -318,6 +318,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _amountMaxController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   Timer? _debounceTimer;
+  Timer? _autoRefreshTimer; // ✅ NOUVEAU : Auto-refresh les dettes
   final Set<dynamic> _expandedClients = {};
   String boutiqueName = '';
   StreamSubscription<List<ConnectivityResult>>? _connSub;
@@ -339,6 +340,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     fetchClients();
     fetchDebts();
     _startConnectivityListener();
+    _startAutoRefresh(); // ✅ NOUVEAU : Démarrer l'auto-refresh
     _searchController.addListener(() {
       final v = _searchController.text;
       if (v != _searchQuery) {
@@ -379,6 +381,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _amountMaxController.dispose();
     _searchFocus.dispose();
     _debounceTimer?.cancel();
+    _autoRefreshTimer?.cancel(); // ✅ NOUVEAU : Annuler le timer auto-refresh
     _connSub?.cancel();
     _pulseController.dispose();
     
@@ -416,6 +419,17 @@ bool _hasConnection(List<ConnectivityResult> results) {
   return results.isNotEmpty && 
          results.any((result) => result != ConnectivityResult.none);
 }
+
+  // ✅ NOUVEAU : Auto-refresh les dettes toutes les 5 secondes si on est sur la tab debts
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted && _tabIndex == 0) {
+        // On est sur l'onglet Debts - refresh silencieusement
+        fetchDebts(query: _searchQuery);
+      }
+    });
+  }
 
   Future<void> _showClientActions(dynamic client, dynamic clientId) async {
     // ✨ CORRIGÉ: Permettre les actions même si client est null, tant qu'on a un clientId valide
