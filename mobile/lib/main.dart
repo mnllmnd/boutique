@@ -1035,6 +1035,25 @@ bool _hasConnection(List<ConnectivityResult> results) {
 
   String? _clientNameForDebt(dynamic d) {
     if (d == null) return null;
+    
+    // ✅ NOUVEAU: Si la dette a été créée par quelqu'un d'autre, afficher le nom du créancier
+    if (d['created_by_other'] == true) {
+      // Priorité 1: creditor_name_custom (nom personnalisé)
+      var creditorName = d['creditor_name_custom']?.toString() ?? '';
+      // Priorité 2: display_creditor_name (du backend)
+      if (creditorName.isEmpty) {
+        creditorName = d['display_creditor_name']?.toString() ?? '';
+      }
+      // Priorité 3: creditor_phone (fallback)
+      if (creditorName.isEmpty) {
+        creditorName = d['creditor_phone']?.toString() ?? '';
+      }
+      if (creditorName.isNotEmpty) {
+        return creditorName;
+      }
+    }
+    
+    // Sinon, chercher le nom du client normalement
     final cid = d['client_id'];
     if (cid == null) return null;
     final c = clients.firstWhere((x) => x['id'] == cid, orElse: () => null);
@@ -2227,7 +2246,12 @@ final choice = await showModalBottomSheet<String>(
           String? clientPhone; // ✅ Numéro séparé pour affichage élégant
           if (clientDebts.isNotEmpty && clientDebts.first['created_by_other'] == true) {
             // C'est une dette créée par un propriétaire pour moi, afficher son nom + numéro
-            final displayCreditorName = clientDebts.first['display_creditor_name']?.toString() ?? '';  // ✅ Priorité: client.name > creditor_name
+            // ✅ NOUVEAU : Priorité 1: creditor_name_custom (si on a personnalisé le nom)
+            var displayCreditorName = clientDebts.first['creditor_name_custom']?.toString() ?? '';
+            // ✅ Priorité 2: display_creditor_name (nom venant du backend)
+            if (displayCreditorName.isEmpty) {
+              displayCreditorName = clientDebts.first['display_creditor_name']?.toString() ?? '';
+            }
             final creditorPhone = clientDebts.first['creditor_phone']?.toString() ?? '';  // ✅ Le numéro du créancier
             clientName = displayCreditorName.isNotEmpty 
                 ? displayCreditorName

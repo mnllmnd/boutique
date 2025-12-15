@@ -1836,25 +1836,162 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
         final data = json.decode(res.body);
         _showSnackbar('Contact ajouté avec succès');
         
-        // ✅ Mettre à jour le nom affiché en temps réel
-        setState(() {
-          _debt['display_creditor_name'] = customName.isNotEmpty ? customName : _debt['display_creditor_name'];
-          _client = data;
-        });
+        // ✅ NOUVEAU : Sauvegarder le nom custom dans la dette pour que ca s'affiche partout
+        // Priorité: Si customName non-vide, l'utiliser; sinon utiliser le display_creditor_name
+        final nameToSave = customName.isNotEmpty ? customName : _debt['display_creditor_name'];
         
-        // ✅ MARQUER COMME CHANGÉ POUR RAFRAÎCHIR LE MAIN
-        _changed = true;
-        
-        // Recharger les données
-        await _loadAllData();
-        
-        // ✅ Redémarrer le refresh automatique (DÉSACTIVÉ)
-        // _startAutoRefresh();
+        // Mettre à jour la dette avec creditor_name_custom
+        try {
+          final updateRes = await http.put(
+            Uri.parse('$apiHost/debts/${_debt['id']}'),
+            headers: headers,
+            body: json.encode({
+              'creditor_name_custom': nameToSave,
+            }),
+          ).timeout(const Duration(seconds: 8));
+          
+          if (updateRes.statusCode == 200) {
+            // ✅ Mettre à jour le nom affiché en temps réel
+            setState(() {
+              _debt['display_creditor_name'] = nameToSave;
+              _debt['creditor_name_custom'] = nameToSave; // ✅ NOUVEAU : Stocker aussi dans _debt
+              _client = data;
+            });
+            
+            // ✅ MARQUER COMME CHANGÉ POUR RAFRAÎCHIR LE MAIN
+            _changed = true;
+            
+            // Recharger les données pour synchroniser
+            await _loadAllData();
+          } else {
+            _showSnackbar('Contact ajouté mais synchronisation échouée');
+          }
+        } catch (e) {
+          _showSnackbar('Contact ajouté mais erreur de synchronisation: $e');
+        }
       } else {
         _showSnackbar('Erreur lors de l\'ajout du contact');
       }
     } catch (e) {
       _showSnackbar('Erreur: $e');
+    }
+  }
+
+  // ✅ NOUVEAU : Éditer le nom du créancier (quand clique sur son nom)
+  Future<void> _editCreditorName(String currentName) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final nameCtl = TextEditingController(text: currentName);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Theme.of(context).cardColor,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MODIFIER LE NOM DU CRÉANCIER',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Entrez le nom que vous voulez afficher pour ce créancier',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: textColor.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtl,
+                autofocus: true,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: 'Ex: Boutique Jean, Jean Dupont, etc.',
+                  hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: textColor.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text('ANNULER', style: TextStyle(color: textColor.withOpacity(0.6))),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: const Text('ENREGISTRER'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed == true && nameCtl.text.trim().isNotEmpty) {
+      try {
+        final headers = {
+          'Content-Type': 'application/json',
+          if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone
+        };
+
+        // Sauvegarder le nom custom dans la dette
+        final res = await http.put(
+          Uri.parse('$apiHost/debts/${_debt['id']}'),
+          headers: headers,
+          body: json.encode({
+            'creditor_name_custom': nameCtl.text.trim(),
+          }),
+        ).timeout(const Duration(seconds: 8));
+
+        if (res.statusCode == 200) {
+          // ✅ Mettre à jour localement
+          setState(() {
+            _debt['display_creditor_name'] = nameCtl.text.trim();
+            _debt['creditor_name_custom'] = nameCtl.text.trim();
+            _changed = true;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nom du créancier mis à jour'),
+              backgroundColor: Colors.green,
+              duration: Duration(milliseconds: 1500),
+            ),
+          );
+          
+          // Recharger les données pour synchroniser partout
+          await _loadAllData();
+        } else {
+          await _showMinimalDialog('Erreur', 'Impossible de mettre à jour le nom');
+        }
+      } catch (e) {
+        await _showMinimalDialog('Erreur réseau', '$e');
+      }
     }
   }
 
@@ -2045,17 +2182,36 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                     _buildClientAvatar(),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                          letterSpacing: 0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      // ✅ NOUVEAU : Rendre le nom cliquable pour éditer (si créé par quelqu'un d'autre)
+                      child: createdByOther
+                          ? GestureDetector(
+                              onTap: () => _editCreditorName(displayName),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: Text(
+                                  displayName,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                    letterSpacing: 0.3,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              displayName,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                                letterSpacing: 0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                     ),
                   ],
                 ),
