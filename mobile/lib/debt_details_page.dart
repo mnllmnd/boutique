@@ -1834,7 +1834,6 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
 
       if (res.statusCode == 201 || res.statusCode == 200) {
         final data = json.decode(res.body);
-        _showSnackbar('Contact ajouté avec succès');
         
         // ✅ NOUVEAU : Sauvegarder le nom custom dans la dette pour que ca s'affiche partout
         // Priorité: Si customName non-vide, l'utiliser; sinon utiliser le display_creditor_name
@@ -1861,8 +1860,22 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
             // ✅ MARQUER COMME CHANGÉ POUR RAFRAÎCHIR LE MAIN
             _changed = true;
             
-            // Recharger les données pour synchroniser
-            await _loadAllData();
+            // ✅ Afficher le snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contact ajouté avec succès'),
+                backgroundColor: Colors.green,
+                duration: Duration(milliseconds: 1500),
+              ),
+            );
+            
+            // ✅ ATTENDRE UN PEU pour que le snackbar s'affiche
+            await Future.delayed(const Duration(milliseconds: 500));
+            
+            // ✅ RETOURNER AU MAIN AVEC TRUE pour rafraîchir
+            if (mounted) {
+              Navigator.pop(context, true);
+            }
           } else {
             _showSnackbar('Contact ajouté mais synchronisation échouée');
           }
