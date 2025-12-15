@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleur de fond sombre pour le splash screen (mode nuit) -->
+    <color name="dark_background">#0f1113</color>
+    <!-- Couleur primaire Boutique -->
+    <color name="primary_color">#7C3AED</color>
+</resources>

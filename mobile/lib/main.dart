@@ -25,6 +25,7 @@ import 'add_addition_page.dart';
 import 'debt_details_page.dart';
 import 'theme.dart';
 import 'utils/methods_extraction.dart';
+import 'widgets/boutique_logo.dart';
 
 // Theme colors (deprecated - use Theme.of(context) instead)
 const Color kBackground = Color(0xFF0F1113);
@@ -95,7 +96,60 @@ Map<String, dynamic> _formatDueDate(dynamic dateStr) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
+  
+  // ✅ Error handling global pour Flutter Web
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    print('❌ Flutter Error: ${details.exception}');
+  };
+
   runApp(const MyApp());
+}
+
+// ✅ ErrorBoundary widget pour capturer les erreurs de build
+class ErrorBoundary extends StatefulWidget {
+  final Widget child;
+  const ErrorBoundary({Key? key, required this.child}) : super(key: key);
+
+  @override
+  State<ErrorBoundary> createState() => _ErrorBoundaryState();
+}
+
+class _ErrorBoundaryState extends State<ErrorBoundary> {
+  bool hasError = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (hasError) {
+      return Scaffold(
+        body: Container(
+          color: const Color(0xFF0F1113),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'Une erreur est survenue',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() => hasError = false);
+                  },
+                  child: const Text('Réessayer'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widget.child;
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -908,19 +962,27 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/clients'),
         headers: headers,
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 12)); // Augmenté pour Web stability
       
       if (res.statusCode == 200) {
-        if (mounted) {
-          setState(() => clients = json.decode(res.body) as List);
+        final newClients = json.decode(res.body) as List;
+        // Vérifier si les données ont vraiment changé avant setState
+        if (newClients.length != clients.length || newClients.toString() != clients.toString()) {
+          if (mounted) {
+            setState(() => clients = newClients);
+          }
         }
         // ✅ NOUVEAU: Mettre à jour Hive pour garder le cache local synchronisé
         await _saveClientsLocally();
       }
     } on TimeoutException {
-      print('Timeout fetching clients');
+      print('⏱️ Timeout fetching clients - using cached data');
+      // Charger depuis le cache local si disponible
+      await _loadClientsLocally();
     } catch (e) {
-      print('Error fetching clients: $e');
+      print('❌ Error fetching clients: $e');
+      // Charger depuis le cache local si disponible
+      await _loadClientsLocally();
     }
   }
 
@@ -934,7 +996,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/debts'),
         headers: headers,
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 12)); // Augmenté pour Web stability
       
       if (res.statusCode == 200) {
         final list = json.decode(res.body) as List;
@@ -1027,17 +1089,24 @@ bool _hasConnection(List<ConnectivityResult> results) {
         // Le remaining retourné par GET /debts est calculé en temps réel avec la formule:
         // remaining = (amount + total_additions) - total_payments
 
-        if (mounted) {
-          setState(() => debts = consolidatedDebts);
+        // Vérifier si les données ont vraiment changé avant setState
+        if (consolidatedDebts.length != debts.length || consolidatedDebts.toString() != debts.toString()) {
+          if (mounted) {
+            setState(() => debts = consolidatedDebts);
+          }
         }
         // ✅ NOUVEAU: Mettre à jour Hive pour garder le cache local synchronisé
         await _saveDebtsLocally();
-        print('[DEBUG] fetchDebts completed. Consolidated ${consolidatedDebts.length} debts');
+        print('✅ fetchDebts completed. Consolidated ${consolidatedDebts.length} debts');
       }
     } on TimeoutException {
-      print('Timeout fetching debts');
+      print('⏱️ Timeout fetching debts - using cached data');
+      // Charger depuis le cache local si disponible
+      await _loadDebtsLocally();
     } catch (e) {
-      print('Error fetching debts: $e');
+      print('❌ Error fetching debts: $e');
+      // Charger depuis le cache local si disponible
+      await _loadDebtsLocally();
     }
   }
 
@@ -1897,12 +1966,11 @@ final choice = await showModalBottomSheet<String>(
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // 💎 DETTES IMPAYÉES - Petit cercle minimaliste centré
+                        // 💎 DETTES IMPAYÉES - Petit cercle minimaliste centré (simplifié sans animation)
                         GestureDetector(
                           onTap: () => setState(() => _showUnpaidDetails = !_showUnpaidDetails),
                           child: Center(
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
+                            child: Container(
                               width: _showUnpaidDetails ? 60 : 48,
                               height: _showUnpaidDetails ? 60 : 48,
                               decoration: BoxDecoration(
@@ -1916,15 +1984,6 @@ final choice = await showModalBottomSheet<String>(
                                       : Colors.green.withOpacity(_showUnpaidDetails ? 0.4 : 0.15),
                                   width: _showUnpaidDetails ? 1.5 : 0.8,
                                 ),
-                                boxShadow: _showUnpaidDetails
-                                    ? [
-                                        BoxShadow(
-                                          color: (totalUnpaid > 0 ? Colors.red : Colors.green).withOpacity(0.1),
-                                          blurRadius: 12,
-                                          spreadRadius: 2,
-                                        ),
-                                      ]
-                                    : [],
                               ),
                               child: Center(
                                 child: _showUnpaidDetails
@@ -2449,9 +2508,10 @@ final choice = await showModalBottomSheet<String>(
                           offset: const Offset(0, 40),
                           child: Icon(Icons.more_vert, color: textColor, size: 16),
                         ),
-                        AnimatedRotation(
-                          turns: isOpen ? 0.25 : 0.0,
-                          duration: const Duration(milliseconds: 200),
+                        // ✅ Rotation simple sans animation (améliore la stabilité)
+                        Transform.rotate(
+                          angle: isOpen ? 0.785398 : 0.0, // 45 degrees
+                          child: Icon(Icons.expand_more, color: textColor, size: 18),
                         ),
                       ],
                     ),
