@@ -1,5 +1,6 @@
 {
-  "buildCommand": "echo 'Build done'",
+  "_comment": "Configuration moved to root vercel.json - this file is for reference only",
+  "buildCommand": "flutter build web --release",
   "outputDirectory": "build/web",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
