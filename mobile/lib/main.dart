@@ -2299,66 +2299,82 @@ final choice = await showModalBottomSheet<String>(
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              // ✅ NUMÉRO EN BAS - beau et lisible avec badge
-                              // N'afficher le numéro que s'il n'existe pas dans les contacts
-                              if (clientPhone != null && clientPhone.isNotEmpty && client == null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(3),
-                                      border: Border.all(
-                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      clientPhone,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Theme.of(context).colorScheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                        letterSpacing: 0.2,
-                                        fontFamily: 'monospace',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              // ✅ NOUVEAU : Date de remboursement avec emoji et couleur
-                              if (latestDebt != null && latestDebt?['due_date'] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Builder(
-                                    builder: (_) {
-                                      final dueInfo = _formatDueDate(latestDebt?['due_date']);
-                                      return Row(
-                                        children: [
-                                          Icon(
-                                            dueInfo['icon'] as IconData,
-                                            size: 12,
-                                            color: dueInfo['color'] as Color,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              dueInfo['text'] as String,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                                color: dueInfo['color'] as Color,
-                                                letterSpacing: 0.2,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                              // ✅ LIGNE AVEC NUMÉRO ET DATE
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // ✅ NUMÉRO À GAUCHE
+                                    if (clientPhone != null && clientPhone.isNotEmpty && client == null)
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(3),
+                                            border: Border.all(
+                                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                                              width: 0.5,
                                             ),
                                           ),
-                                        ],
-                                      );
-                                    },
-                                  ),
+                                          child: Text(
+                                            clientPhone,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(context).colorScheme.primary,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 0.2,
+                                              fontFamily: 'monospace',
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                    // ✅ DATE À DROITE
+                                    if (latestDebt != null && latestDebt?['due_date'] != null)
+                                      Builder(
+                                        builder: (_) {
+                                          final dueInfo = _formatDueDate(latestDebt?['due_date']);
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: (dueInfo['color'] as Color).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(3),
+                                              border: Border.all(
+                                                color: (dueInfo['color'] as Color).withOpacity(0.2),
+                                                width: 0.5,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  dueInfo['icon'] as IconData,
+                                                  size: 11,
+                                                  color: dueInfo['color'] as Color,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  dueInfo['text'] as String,
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: dueInfo['color'] as Color,
+                                                    letterSpacing: 0.3,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
                                 ),
+                              ),
                             ],
                           ),
                         ),
