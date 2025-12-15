@@ -1700,8 +1700,8 @@ final choice = await showModalBottomSheet<String>(
       onRefresh: () async => await fetchDebts(),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        // 1 header + recentItems + 1 risk box
-        itemCount: 1 + recentItems.length + 1,
+        // 1 header + recentItems
+        itemCount: 1 + recentItems.length,
         itemBuilder: (ctx, gi) {
           if (gi == 0) {
             // Main header (totals, filter, etc.)
@@ -2245,10 +2245,10 @@ final choice = await showModalBottomSheet<String>(
                                         ),
                                       ),
                                     // ✅ ESPACEMENT ADAPTATIF
-                                    if (clientPhone != null && clientPhone.isNotEmpty && client == null && latestDebt != null && latestDebt?['due_date'] != null)
+                                    if (clientPhone != null && clientPhone.isNotEmpty && client == null && latestDebt != null && latestDebt['due_date'] != null)
                                       const SizedBox(width: 8),
                                     // ✅ DATE À DROITE - ou centrée si pas de numéro
-                                    if (latestDebt != null && latestDebt?['due_date'] != null)
+                                    if (latestDebt != null && latestDebt['due_date'] != null)
                                       Builder(
                                         builder: (_) {
                                           final dueInfo = _formatDueDate(latestDebt?['due_date']);
