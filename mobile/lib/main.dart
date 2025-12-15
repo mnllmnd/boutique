@@ -420,7 +420,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       fetchClients().catchError((e) { print('fetchClients error: $e'); }),
       fetchDebts().catchError((e) { print('fetchDebts error: $e'); }),
     ]).then((_) {
-      // ⬇️ NOUVEAU: Garantir que _isLoading devient false après 3 secondes max
+      // ⬇️ NOUVEAU: Garantir que _isLoading devient false après 10 secondes max
       if (mounted && _isLoading) {
         setState(() => _isLoading = false);
       }
@@ -431,10 +431,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
     });
     
-    // ⬇️ NOUVEAU: Fallback timeout - forcer _isLoading = false après 5 secondes max
-    Future.delayed(const Duration(seconds: 5), () {
+    // ⬇️ NOUVEAU: Fallback timeout - forcer _isLoading = false après 10 secondes max
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted && _isLoading) {
-        print('⚠️ Force disabling loading after 5s timeout');
+        print('⚠️ Force disabling loading after 10s (API too slow or offline)');
         setState(() => _isLoading = false);
       }
     });
@@ -463,13 +463,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           if (mounted) setState(() {});
         });
         
-        // ✨ Initialize HiveServiceManager for offline-first sync
-        try {
-          await HiveServiceManager().initializeForOwner(widget.ownerPhone);
+        // ✨ Initialize HiveServiceManager en ARRIÈRE-PLAN (pas d'await au démarrage!)
+        // Cela ne doit pas bloquer l'affichage initial
+        HiveServiceManager().initializeForOwner(widget.ownerPhone).then((_) {
           print('✅ HiveServiceManager initialized');
-        } catch (e) {
+        }).catchError((e) {
           print('⚠️  HiveServiceManager init error: $e');
-        }
+        });
       }
     });
   }
@@ -485,19 +485,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _connSub?.cancel();
     _pulseController.dispose();
     
-    // ✨ Shutdown HiveServiceManager
-    _shutdownHive();
+    // ✨ Shutdown HiveServiceManager (non-blocking)
+    HiveServiceManager().shutdown().catchError((e) {
+      print('⚠️  HiveServiceManager shutdown error: $e');
+    });
     
     super.dispose();
-  }
-  
-  Future<void> _shutdownHive() async {
-    try {
-      await HiveServiceManager().shutdown();
-      print('✅ HiveServiceManager shutdown');
-    } catch (e) {
-      print('⚠️  HiveServiceManager shutdown error: $e');
-    }
   }
 
   Future<void> _startConnectivityListener() async {
@@ -918,11 +911,8 @@ bool _hasConnection(List<ConnectivityResult> results) {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
     try {
-      // ✨ Use HiveServiceManager for automatic sync with offline support
-      final token = AppSettings().authToken;
-      await HiveServiceManager().syncNow(widget.ownerPhone, authToken: token);
-      
-      // Refresh UI data from cache
+      // ✨ Refetcher simplement depuis l'API (sans Hive blocking)
+      // Hive sync est optionnel et ne doit pas bloquer
       await fetchClients();
       await fetchDebts();
       
@@ -1029,7 +1019,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/clients'),
         headers: headers,
-      ).timeout(const Duration(seconds: 3)); // ⬇️ Réduit à 3s pour PWA (fallback plus rapide)
+      ).timeout(const Duration(seconds: 8)); // ⬇️ Augmenté à 8s (plus de temps pour PWA)
       
       if (res.statusCode == 200) {
         final newClients = json.decode(res.body) as List;
@@ -1043,7 +1033,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
         await _saveClientsLocally();
       }
     } on TimeoutException {
-      print('⏱️ Timeout fetching clients (3s) - using cached data');
+      print('⏱️ Timeout fetching clients (8s) - using cached data');
       // Charger depuis le cache local si disponible
       await _loadClientsLocally();
       if (mounted && _isLoading) {
@@ -1069,7 +1059,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/debts'),
         headers: headers,
-      ).timeout(const Duration(seconds: 3)); // ⬇️ Réduit à 3s pour PWA (fallback plus rapide)
+      ).timeout(const Duration(seconds: 8)); // ⬇️ Augmenté à 8s (plus de temps pour PWA)
       
       if (res.statusCode == 200) {
         // ⬇️ Vérifier que le body n'est pas vide
@@ -1180,7 +1170,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
         print('✅ fetchDebts completed. Consolidated ${consolidatedDebts.length} debts');
       }
     } on TimeoutException {
-      print('⏱️ Timeout fetching debts (3s) - using cached data');
+      print('⏱️ Timeout fetching debts (8s) - using cached data');
       // Charger depuis le cache local si disponible
       await _loadDebtsLocally();
       if (mounted && _isLoading) {
@@ -3503,6 +3493,14 @@ final choice = await showModalBottomSheet<String>(
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                   const Text('Chargement des données...'),
+                  const SizedBox(height: 8),
+                  Text(
+                    '(Depuis le cache si l\'API est lente)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () {
