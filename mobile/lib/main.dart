@@ -2248,9 +2248,10 @@ final choice = await showModalBottomSheet<String>(
 
           // Calculer le total : ne prendre que la dette la plus récente pour le couple (client,type)
           double totalRemaining = 0.0;
+          Map<String, dynamic>? latestDebt;
           if (clientDebts.isNotEmpty) {
-            final latest = clientDebts.reduce((a, b) => HomePageMethods.tsForDebt(b) >= HomePageMethods.tsForDebt(a) ? b : a);
-            totalRemaining = ((latest['remaining'] as num?)?.toDouble() ?? 0.0);
+            latestDebt = clientDebts.reduce((a, b) => HomePageMethods.tsForDebt(b) >= HomePageMethods.tsForDebt(a) ? b : a);
+            totalRemaining = ((latestDebt?['remaining'] as num?)?.toDouble() ?? 0.0);
           }
 
           final bool isOpen = _expandedClients.contains(compositeKey);
@@ -2265,7 +2266,8 @@ final choice = await showModalBottomSheet<String>(
                 InkWell(
                   onTap: () {
                     if (clientDebts.isNotEmpty) {
-                      showDebtDetails(clientDebts.first);
+                      // ✅ Afficher la dernière dette (celle avec la due_date la plus pertinente)
+                      showDebtDetails(latestDebt ?? clientDebts.first);
                     }
                   },
                   onLongPress: () => _showClientActions(client, clientId),
@@ -2325,12 +2327,12 @@ final choice = await showModalBottomSheet<String>(
                                   ),
                                 ),
                               // ✅ NOUVEAU : Date de remboursement avec emoji et couleur
-                              if (clientDebts.isNotEmpty && clientDebts.first['due_date'] != null)
+                              if (latestDebt != null && latestDebt?['due_date'] != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Builder(
                                     builder: (_) {
-                                      final dueInfo = _formatDueDate(clientDebts.first['due_date']);
+                                      final dueInfo = _formatDueDate(latestDebt?['due_date']);
                                       return Row(
                                         children: [
                                           Icon(
