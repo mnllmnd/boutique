@@ -411,10 +411,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       print('Error loading clients from cache: $e');
     });
     
-    // ⬇️ PUIS charger depuis l'API en arrière-plan
+    // ⬇️ PUIS charger depuis l'API en arrière-plan avec timeout court
     _loadBoutique();
-    fetchClients();
-    fetchDebts();
+    
+    // ⬇️ NOUVEAU: Lancer les requêtes avec un timeout très court (2s) pour PWA
+    // et garantir que _isLoading devient false rapidement
+    Future.wait([
+      fetchClients().catchError((e) { print('fetchClients error: $e'); }),
+      fetchDebts().catchError((e) { print('fetchDebts error: $e'); }),
+    ]).then((_) {
+      // ⬇️ NOUVEAU: Garantir que _isLoading devient false après 3 secondes max
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
+    }).catchError((e) {
+      print('Error in initState async load: $e');
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
+    });
+    
+    // ⬇️ NOUVEAU: Fallback timeout - forcer _isLoading = false après 5 secondes max
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _isLoading) {
+        print('⚠️ Force disabling loading after 5s timeout');
+        setState(() => _isLoading = false);
+      }
+    });
+    
     _startConnectivityListener();
     _startAutoRefresh(); // ✅ NOUVEAU : Démarrer l'auto-refresh
     _searchController.addListener(() {
@@ -939,10 +963,14 @@ bool _hasConnection(List<ConnectivityResult> results) {
   Future<void> _saveDebtsLocally() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final debtsJson = json.encode(debts);
-      await prefs.setString('debts_${widget.ownerPhone}', debtsJson);
+      // ⬇️ NOUVEAU: Vérifier que debts n'est pas vide avant sauvegarder
+      if (debts.isNotEmpty) {
+        final debtsJson = json.encode(debts);
+        await prefs.setString('debts_${widget.ownerPhone}', debtsJson);
+        print('✅ Saved ${debts.length} debts to cache');
+      }
     } catch (e) {
-      print('Error saving debts locally: $e');
+      print('❌ Error saving debts locally: $e');
     }
   }
 
@@ -951,22 +979,28 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final prefs = await SharedPreferences.getInstance();
       final debtsJson = prefs.getString('debts_${widget.ownerPhone}');
       if (debtsJson != null && debtsJson.isNotEmpty) {
-        if (mounted) {
-          setState(() => debts = List.from(json.decode(debtsJson) as List));
+        final decodedList = json.decode(debtsJson) as List;
+        if (decodedList.isNotEmpty && mounted) {
+          setState(() => debts = List.from(decodedList));
+          print('✅ Loaded ${debts.length} debts from cache');
         }
       }
     } catch (e) {
-      print('Error loading debts locally: $e');
+      print('❌ Error loading debts locally: $e');
     }
   }
 
   Future<void> _saveClientsLocally() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final clientsJson = json.encode(clients);
-      await prefs.setString('clients_${widget.ownerPhone}', clientsJson);
+      // ⬇️ NOUVEAU: Vérifier que clients n'est pas vide avant sauvegarder
+      if (clients.isNotEmpty) {
+        final clientsJson = json.encode(clients);
+        await prefs.setString('clients_${widget.ownerPhone}', clientsJson);
+        print('✅ Saved ${clients.length} clients to cache');
+      }
     } catch (e) {
-      print('Error saving clients locally: $e');
+      print('❌ Error saving clients locally: $e');
     }
   }
 
@@ -975,12 +1009,14 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final prefs = await SharedPreferences.getInstance();
       final clientsJson = prefs.getString('clients_${widget.ownerPhone}');
       if (clientsJson != null && clientsJson.isNotEmpty) {
-        if (mounted) {
-          setState(() => clients = List.from(json.decode(clientsJson) as List));
+        final decodedList = json.decode(clientsJson) as List;
+        if (decodedList.isNotEmpty && mounted) {
+          setState(() => clients = List.from(decodedList));
+          print('✅ Loaded ${clients.length} clients from cache');
         }
       }
     } catch (e) {
-      print('Error loading clients locally: $e');
+      print('❌ Error loading clients locally: $e');
     }
   }
 
@@ -993,7 +1029,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/clients'),
         headers: headers,
-      ).timeout(const Duration(seconds: 4)); // Réduit pour fallback plus rapide
+      ).timeout(const Duration(seconds: 3)); // ⬇️ Réduit à 3s pour PWA (fallback plus rapide)
       
       if (res.statusCode == 200) {
         final newClients = json.decode(res.body) as List;
@@ -1007,13 +1043,19 @@ bool _hasConnection(List<ConnectivityResult> results) {
         await _saveClientsLocally();
       }
     } on TimeoutException {
-      print('⏱️ Timeout fetching clients - using cached data');
+      print('⏱️ Timeout fetching clients (3s) - using cached data');
       // Charger depuis le cache local si disponible
       await _loadClientsLocally();
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       print('❌ Error fetching clients: $e');
       // Charger depuis le cache local si disponible
       await _loadClientsLocally();
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1027,7 +1069,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/debts'),
         headers: headers,
-      ).timeout(const Duration(seconds: 4)); // Réduit pour fallback plus rapide
+      ).timeout(const Duration(seconds: 3)); // ⬇️ Réduit à 3s pour PWA (fallback plus rapide)
       
       if (res.statusCode == 200) {
         // ⬇️ Vérifier que le body n'est pas vide
@@ -1138,13 +1180,19 @@ bool _hasConnection(List<ConnectivityResult> results) {
         print('✅ fetchDebts completed. Consolidated ${consolidatedDebts.length} debts');
       }
     } on TimeoutException {
-      print('⏱️ Timeout fetching debts - using cached data');
+      print('⏱️ Timeout fetching debts (3s) - using cached data');
       // Charger depuis le cache local si disponible
       await _loadDebtsLocally();
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       print('❌ Error fetching debts: $e');
       // Charger depuis le cache local si disponible
       await _loadDebtsLocally();
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
