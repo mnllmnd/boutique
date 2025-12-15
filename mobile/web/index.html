@@ -113,18 +113,29 @@
   </div>
 
   <!-- ✅ Configuration du renderer HTML pour stabilité sur iOS/Web -->
-  <script>
+  <!-- ⬇️ REMOVED: window.flutterConfiguration is deprecated and conflicts with engineInitializer -->
+  <!-- <script>
     window.flutterConfiguration = {
       renderer: "html",
       // Disable GPU rendering pour plus de stabilité
       canvasKitMaximumSize: 0,
     };
-  </script>
+  </script> -->
 
   <script src="flutter_bootstrap.js" async></script>
 
   <!-- ✅ Error handler global pour capturer les crashes silencieux -->
   <script>
+    // ⬇️ NOUVEAU: Masquer le splash screen une fois que Flutter démarre
+    window.addEventListener('load', () => {
+      const splashScreen = document.querySelector('.flutter-loading');
+      if (splashScreen) {
+        setTimeout(() => {
+          splashScreen.style.display = 'none';
+        }, 500); // Attendre 500ms pour que Flutter se rend
+      }
+    });
+
     window.addEventListener('error', function(event) {
       console.error('Uncaught error:', event.error);
       // Ne pas laisser l'app en état blanc - afficher un message

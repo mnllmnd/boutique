@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:ui'; // ⬇️ NOUVEAU : Pour PlatformDispatcher
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -97,6 +98,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
   
+  // ⬇️ NOUVEAU: Capturer les futures non gérées
+  PlatformDispatcher.instance.onError = (error, stack) {
+    print('❌ Unhandled error: $error\n$stack');
+    return true;
+  };
+  
   // ✅ Error handling global pour Flutter Web
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -109,7 +116,7 @@ void main() async {
 // ✅ ErrorBoundary widget pour capturer les erreurs de build
 class ErrorBoundary extends StatefulWidget {
   final Widget child;
-  const ErrorBoundary({Key? key, required this.child}) : super(key: key);
+  const ErrorBoundary({super.key, required this.child});
 
   @override
   State<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -175,7 +182,11 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _appSettings = AppSettings();
     _appSettings.addListener(_onSettingsChanged);
-    _loadOwner();
+    
+    // ⬇️ Lancer _loadOwner() avec gestion d'erreur
+    _loadOwner().catchError((e) {
+      print('❌ Error in _loadOwner: $e');
+    });
   }
 
   void _onSettingsChanged() {
@@ -204,13 +215,13 @@ class _MyAppState extends State<MyApp> {
       final token = _appSettings.authToken;
       
       if (token != null && token.isNotEmpty) {
-        // Try to verify token
+        // Try to verify token (short timeout)
         try {
           final res = await http.post(
             Uri.parse('$apiHost/auth/verify-token'.replaceFirst('\u007f', '')),
             headers: {'Content-Type': 'application/json'},
             body: json.encode({'auth_token': token})
-          ).timeout(const Duration(seconds: 5));
+          ).timeout(const Duration(seconds: 2)); // ⬇️ Reduced from 5 to 2 seconds
           
           if (res.statusCode == 200) {
             final data = json.decode(res.body);
@@ -222,8 +233,9 @@ class _MyAppState extends State<MyApp> {
             });
             return; // Auto-login successful
           }
-        } catch (_) {
+        } catch (e) {
           // Token verification failed, continue to login page
+          print('Token verification failed: $e');
         }
       }
     }
@@ -360,6 +372,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String _debtSubTab = 'prets'; // 'prets' ou 'emprunts'
   List debts = [];
   List clients = [];
+  bool _isLoading = true; // ⬇️ NOUVEAU : Flag pour l'écran de chargement
   String _searchQuery = '';
   bool _isSearching = false;
   bool _showTotalCard = true;
@@ -390,6 +403,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       vsync: this,
     )..repeat();
     
+    // ⬇️ Charger les données EN CACHE IMMÉDIATEMENT
+    _loadDebtsLocally().catchError((e) {
+      print('Error loading debts from cache: $e');
+    });
+    _loadClientsLocally().catchError((e) {
+      print('Error loading clients from cache: $e');
+    });
+    
+    // ⬇️ PUIS charger depuis l'API en arrière-plan
     _loadBoutique();
     fetchClients();
     fetchDebts();
@@ -898,10 +920,19 @@ bool _hasConnection(List<ConnectivityResult> results) {
   }
 
   Future _loadBoutique() async {
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('boutique_name_${widget.ownerPhone}');
-    if (name != null && name.isNotEmpty) {
-      setState(() => boutiqueName = name);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('boutique_name_${widget.ownerPhone}');
+      if (name != null && name.isNotEmpty) {
+        setState(() => boutiqueName = name);
+      }
+    } catch (e) {
+      print('❌ Error loading boutique: $e');
+    } finally {
+      // ⬇️ Marquer le chargement comme complet
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -962,7 +993,7 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/clients'),
         headers: headers,
-      ).timeout(const Duration(seconds: 12)); // Augmenté pour Web stability
+      ).timeout(const Duration(seconds: 4)); // Réduit pour fallback plus rapide
       
       if (res.statusCode == 200) {
         final newClients = json.decode(res.body) as List;
@@ -996,9 +1027,16 @@ bool _hasConnection(List<ConnectivityResult> results) {
       final res = await http.get(
         Uri.parse('$apiHost/debts'),
         headers: headers,
-      ).timeout(const Duration(seconds: 12)); // Augmenté pour Web stability
+      ).timeout(const Duration(seconds: 4)); // Réduit pour fallback plus rapide
       
       if (res.statusCode == 200) {
+        // ⬇️ Vérifier que le body n'est pas vide
+        if (res.body.isEmpty) {
+          print('⚠️ Empty response body for debts');
+          await _loadDebtsLocally();
+          return;
+        }
+        
         final list = json.decode(res.body) as List;
         
         // GROUPER PAR CLIENT+TYPE : garder uniquement la dette la plus récente
@@ -3409,7 +3447,28 @@ final choice = await showModalBottomSheet<String>(
           ),
         ),
       ),
-      body: _tabIndex == 0 ? _buildDebtsTab() : _buildClientsTab(),
+      body: _isLoading && debts.isEmpty && clients.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('Chargement des données...'),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() => _isLoading = true);
+                      _loadBoutique();
+                      fetchClients();
+                      fetchDebts();
+                    },
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            )
+          : _tabIndex == 0 ? _buildDebtsTab() : _buildClientsTab(),
       bottomNavigationBar: Builder(
         builder: (ctx) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;

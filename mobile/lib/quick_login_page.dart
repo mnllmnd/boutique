@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async'; // ⬇️ NOUVEAU : Pour TimeoutException
 import 'app_settings.dart';
 import 'package:boutique_mobile/config/api_config.dart';
 import 'services/pin_auth_offline_service.dart';
@@ -29,7 +30,13 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     super.initState();
     phoneCtl = TextEditingController();
     pinCtl = TextEditingController();
-    _loadCountries();
+    
+    // ⬇️ Défaut: Sénégal (221) - sans appel API
+    selectedCountryCode = '221';
+    setState(() => loadingCountries = false);
+    
+    // ⬇️ Charger les pays EN ARRIÈRE-PLAN (async, non-bloquant)
+    Future.delayed(const Duration(milliseconds: 500), _loadCountries);
   }
 
   @override
@@ -43,11 +50,11 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
     try {
       final res = await http.get(
         Uri.parse('$apiHost/countries'),
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 3)); // ⬇️ Réduit à 3 sec
       
-      print('[COUNTRIES] Status: ${res.statusCode}, Body: ${res.body}');
+      print('[COUNTRIES] Status: ${res.statusCode}');
       
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200 && mounted) {
         final List<dynamic> data = json.decode(res.body);
         print('[COUNTRIES] Loaded ${data.length} countries');
         setState(() {
@@ -58,17 +65,14 @@ class _QuickLoginPageState extends State<QuickLoginPage> {
               'flag_emoji': item['flag_emoji'] ?? '',
             })
           );
-          // Défaut: Sénégal (221)
-          selectedCountryCode = '221';
-          loadingCountries = false;
         });
-      } else {
-        print('[COUNTRIES] Error: ${res.statusCode} - ${res.body}');
-        setState(() => loadingCountries = false);
       }
+    } on TimeoutException {
+      print('⏱️ Countries timeout - using default (SN)');
+      // Ignore timeout silently - default is already set
     } catch (e) {
-      print('[COUNTRIES] Exception: $e');
-      setState(() => loadingCountries = false);
+      print('❌ Error loading countries: $e');
+      // Ignore errors - default is already set
     }
   }
 

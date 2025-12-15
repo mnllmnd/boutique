@@ -45,4 +45,4 @@ flutter:
   uses-material-design: true
   assets:
     - .env
-    - assets/logo.jpeg
+    - assets/logo.svg
