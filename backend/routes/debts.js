@@ -390,17 +390,23 @@ router.get('/:id', async (req, res) => {
       }
     } else if (!isCreatedByMe) {
       // ✅ SYSTÈME DE SMS: Afficher le nom que J'AI choisi pour le créancier dans MON carnet
-      // Priorité 1: Nom local (si je l'ai enregistré dans mes contacts)
-      const localName = await getLocalCreditorName(debt.creditor, owner);
-      if (localName) {
-        displayCreditorName = localName;
-        console.log(`[DEBT GET /:id] Using LOCAL creditor name (my choice): ${localName} for ${debt.creditor}`);
+      // Priorité 1: Nom custom (si je l'ai enregistré quand j'ai ajouté le créancier comme contact)
+      if (debt.creditor_name_custom && debt.creditor_name_custom.trim()) {
+        displayCreditorName = debt.creditor_name_custom;
+        console.log(`[DEBT GET /:id] Using CUSTOM creditor name: ${debt.creditor_name_custom} for ${debt.creditor}`);
       } else {
-        // Priorité 2: Nom officiel (le vrai nom du créancier)
-        const officialName = await getOfficialOwnerName(debt.creditor);
-        if (officialName) {
-          displayCreditorName = officialName;
-          console.log(`[DEBT GET /:id] Using OFFICIAL creditor name: ${officialName} for ${debt.creditor}`);
+        // Priorité 2: Nom local (si je l'ai enregistré dans mes contacts)
+        const localName = await getLocalCreditorName(debt.creditor, owner);
+        if (localName) {
+          displayCreditorName = localName;
+          console.log(`[DEBT GET /:id] Using LOCAL creditor name (my choice): ${localName} for ${debt.creditor}`);
+        } else {
+          // Priorité 3: Nom officiel (le vrai nom du créancier)
+          const officialName = await getOfficialOwnerName(debt.creditor);
+          if (officialName) {
+            displayCreditorName = officialName;
+            console.log(`[DEBT GET /:id] Using OFFICIAL creditor name: ${officialName} for ${debt.creditor}`);
+          }
         }
       }
     }
@@ -740,13 +746,37 @@ router.post('/', async (req, res) => {
 // Update a debt
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { amount, due_date, notes, paid } = req.body;
+  const { amount, due_date, notes, paid, creditor_name_custom } = req.body;
   try {
     const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
     
-    // Verify ownership: only allow updating own debts
-    const checkRes = await pool.query('SELECT * FROM debts WHERE id=$1 AND creditor=$2', [id, owner]);
-    if (checkRes.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+    // ✅ NOUVEAU: Logique plus permissive
+    // Si on met à jour SEULEMENT creditor_name_custom (champ personnel), ne pas vérifier la propriété
+    const isOnlyCreditorNameCustom = 
+      creditor_name_custom !== undefined &&
+      amount === undefined &&
+      due_date === undefined &&
+      notes === undefined &&
+      paid === undefined;
+    
+    let debtExists = false;
+    
+    if (!isOnlyCreditorNameCustom) {
+      // Vérifier la propriété pour les champs sensibles
+      const checkRes = await pool.query(
+        `SELECT d.* FROM debts d
+         LEFT JOIN clients c ON d.client_id = c.id
+         WHERE d.id=$1 AND (d.creditor=$2 OR c.client_number=$2)`,
+        [id, owner]
+      );
+      if (checkRes.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      debtExists = true;
+    } else {
+      // Pour creditor_name_custom, juste vérifier que la dette existe (peu importe qui la modifie)
+      const checkRes = await pool.query('SELECT * FROM debts WHERE id=$1', [id]);
+      if (checkRes.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+      debtExists = true;
+    }
     
     if (amount !== undefined) {
       return res.status(400).json({ error: 'Cannot directly update amount. Use POST /:id/add or POST /:id/pay instead.' });
@@ -767,6 +797,12 @@ router.put('/:id', async (req, res) => {
     if (paid !== undefined) {
       updateFields.push(`paid=$${paramIndex++}`);
       params.push(paid);
+    }
+    // ✅ NOUVEAU: Accepter creditor_name_custom pour persister le nom personnalisé
+    if (creditor_name_custom !== undefined) {
+      updateFields.push(`creditor_name_custom=$${paramIndex++}`);
+      params.push(creditor_name_custom);
+      console.log(`[PUT DEBT] Updating creditor_name_custom to: ${creditor_name_custom}`);
     }
     
     if (updateFields.length === 0) return res.status(400).json({ error: 'No fields to update' });
