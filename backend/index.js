@@ -13,7 +13,20 @@ const path = require('path');
 
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+// CORS configuration - allow requests from all origins (or configure specific origins)
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow all origins to bypass CORS issues in development
+    // For production, specify allowed origins: ['https://yourdomain.com']
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/debts', debtsRouter);
