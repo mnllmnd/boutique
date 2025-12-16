@@ -26,7 +26,7 @@ jobs:
       - name: Build web
         run: |
           cd mobile
-          flutter build web --release --no-strip
+          flutter build web --release
 
       - name: Commit and push build
         run: |
