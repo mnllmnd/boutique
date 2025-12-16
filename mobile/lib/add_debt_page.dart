@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:boutique_mobile/config/api_config.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:boutique_mobile/widgets/smart_calculator.dart';
 import 'data/audio_service.dart';
 
 class AddDebtPage extends StatefulWidget {
@@ -557,6 +558,23 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
       },
     );
     if (d != null) setState(() => _due = d);
+  }
+
+  void _openCalculator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => SmartCalculator(
+        initialValue: double.tryParse(_amountCtl.text.replaceAll(',', '')) ?? 0,
+        onResultSelected: (result) {
+          setState(() {
+            _amountCtl.text = result.toStringAsFixed(2);
+          });
+        },
+        title: 'CALCULATRICE - MONTANT',
+        isDark: isDark,
+      ),
+    );
   }
 
   Future<void> _startRecording() async {
@@ -1251,14 +1269,36 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'MONTANT',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.5,
-                                    color: textColorSecondary,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'MONTANT',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1.5,
+                                        color: textColorSecondary,
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: _openCalculator,
+                                      icon: const Icon(Icons.calculate, size: 16),
+                                      label: const Text('CALC'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue[400],
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 TextFormField(
