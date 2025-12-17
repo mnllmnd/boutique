@@ -1,5 +1,6 @@
 {
-  "outputDirectory": "mobile/build/web",
+  "buildCommand": "echo 'skipped'", 
+  "outputDirectory": "build/web",
   "headers": [
     {
       "source": "/downloads/(.*)",
