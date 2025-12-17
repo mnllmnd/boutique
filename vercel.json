@@ -1,6 +1,6 @@
 {
   "buildCommand": "echo 'Build done locally'",
-  "outputDirectory": "public",
+  "outputDirectory": "mobile/build/web",
   "headers": [
     {
       "source": "/downloads/(.*)",
@@ -21,6 +21,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/download.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
