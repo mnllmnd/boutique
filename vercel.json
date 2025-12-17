@@ -1,5 +1,5 @@
 {
-  "buildCommand": "mkdir -p build/web && cp -r public_build/* build/web/ 2>/dev/null || (mkdir build\\web 2>nul & xcopy public_build build\\web /E /I /Y > nul)",
+  "buildCommand": "node build-copy.js",
   "outputDirectory": "build/web",
   "headers": [
     {
