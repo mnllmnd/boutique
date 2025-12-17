@@ -2082,7 +2082,7 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                       if (displayPhone != null)
                         Flexible(
                           child: Text(
-                            displayPhone!,
+                            displayPhone,
                             style: TextStyle(
                               fontSize: 13,
                               fontFamily: 'monospace',
@@ -2212,14 +2212,24 @@ class _DebtDetailsPageState extends State<DebtDetailsPage> with TickerProviderSt
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  _fmtAmount(totalPaid),
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
+                                // ✅ Afficher un checkmark si tout est payé, sinon le montant
+                                remaining <= 0
+                                    ? Text(
+                                        '✓',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.green,
+                                        ),
+                                      )
+                                    : Text(
+                                        _fmtAmount(totalPaid),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
                               ],
                             ),
                           ),

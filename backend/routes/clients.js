@@ -161,30 +161,64 @@ router.post('/', async (req, res) => {
   const { client_number, name, avatar_url } = req.body;
   const owner = req.headers['x-owner'] || req.headers['X-Owner'] || process.env.BOUTIQUE_OWNER || 'owner';
   try {
-    // ✅ NOUVEAU: Utiliser le matching automatique
-    const matchResult = await findOrCreateClient(client_number, name, avatar_url, owner);
-    if (!matchResult) {
-      return res.status(400).json({ error: 'Invalid client_number' });
+    // ✅ Valider que name est fourni et non vide
+    if (!name || !name.trim()) {
+      return res.status(400).json({ 
+        error: 'Le nom du client est requis'
+      });
+    }
+
+    // ✅ SI un numéro est fourni, vérifier s'il existe déjà
+    if (client_number && client_number.trim()) {
+      const normalizedNumber = client_number.replace(/[^0-9]/g, '');
+      const existingRes = await pool.query(
+        `SELECT * FROM clients 
+         WHERE owner_phone = $1 
+         AND (client_number = $2 OR normalized_phone = $3)
+         LIMIT 1`,
+        [owner, client_number, normalizedNumber]
+      );
+      
+      if (existingRes.rowCount > 0) {
+        // Client avec ce numéro existe déjà
+        return res.status(400).json({ 
+          error: 'Un client avec ce numéro existe déjà',
+          existing_client: existingRes.rows[0]
+        });
+      }
     }
     
-    const { client, is_existing } = matchResult;
+    // Créer le client (avec ou sans numéro)
+    const clientRes = await pool.query(
+      'INSERT INTO clients (client_number, name, avatar_url, owner_phone) VALUES ($1, $2, $3, $4) RETURNING *',
+      [client_number || null, name || 'Client', avatar_url, owner]
+    );
     
-    // Log activity only if new client was created
-    if (!is_existing) {
-      try {
-        await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'create_client', JSON.stringify({ client_id: client.id, name: client.name, client_number: client_number })]);
-      } catch (e) { console.error('Activity log error:', e); }
-    }
+    const client = clientRes.rows[0];
     
-    // Toujours retourner le status 201 pour cohérence
-    res.status(is_existing ? 200 : 201).json({
+    // Log activity
+    try {
+      await pool.query('INSERT INTO activity_log(owner_phone, action, details) VALUES($1,$2,$3)', [owner, 'create_client', JSON.stringify({ client_id: client.id, name: client.name, client_number: client_number })]);
+    } catch (e) { console.error('Activity log error:', e); }
+    
+    res.status(201).json({
       ...client,
-      matched: is_existing,
-      message: is_existing ? 'Client already exists with this number' : 'New client created'
+      message: 'Nouveau client créé'
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'DB error' });
+    console.error('Client creation error:', err);
+    
+    // ✅ Vérifier si c'est une erreur de contrainte UNIQUE
+    if (err.code === '23505') {
+      // Erreur UNIQUE violation
+      if (err.constraint === 'unique_client_per_owner' || err.detail?.includes('client_number')) {
+        return res.status(409).json({ 
+          error: 'Un client avec ce numéro existe déjà pour votre boutique'
+        });
+      }
+    }
+    
+    res.status(500).json({ error: 'Erreur lors de la création du client' });
   }
 });
 

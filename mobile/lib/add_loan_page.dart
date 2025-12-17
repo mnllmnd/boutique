@@ -7,6 +7,16 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:boutique_mobile/widgets/smart_calculator.dart';
 import 'data/audio_service.dart';
 
+// Extension pour trouver le premier élément ou null
+extension FirstWhereOrNull<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
 class AddLoanPage extends StatefulWidget {
   final String ownerPhone;
   final List clients;
@@ -172,11 +182,16 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
 
     if (ok == true && nameCtl.text.trim().isNotEmpty) {
       try {
-        final body = {'client_number': numberCtl.text.trim(), 'name': nameCtl.text.trim()};
+        final phoneNumber = numberCtl.text.trim();
+        final body = {
+          if (phoneNumber.isNotEmpty) 'client_number': phoneNumber,
+          'name': nameCtl.text.trim()
+        };
         final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
         setState(() => _saving = true);
         final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
-        if (res.statusCode == 201) {
+        
+        if (res.statusCode == 201 || res.statusCode == 200) {
           try {
             final created = json.decode(res.body);
             setState(() {
@@ -195,6 +210,8 @@ class _AddLoanPageState extends State<AddLoanPage> with TickerProviderStateMixin
           } catch (_) {
             _showMinimalSnackbar('Prêteur ajouté', isSuccess: true);
           }
+        } else if (res.statusCode == 400) {
+          _showMinimalDialog('Un client avec ce numéro existe déjà');
         } else {
           _showMinimalDialog('Erreur lors de la création');
         }

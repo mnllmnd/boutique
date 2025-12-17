@@ -7,6 +7,16 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:boutique_mobile/widgets/smart_calculator.dart';
 import 'data/audio_service.dart';
 
+// Extension pour trouver le premier élément ou null
+extension FirstWhereOrNull<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
 class AddDebtPage extends StatefulWidget {
   final String ownerPhone;
   final List clients;
@@ -108,7 +118,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
     
     // Charger les pays
     List<Map<String, dynamic>> countries = [];
-    String? selectedCountryCode = '221'; // Défaut: Sénégal
+    String? selectedCountryCode; // Aucun défaut - permet de ne pas sélectionner
     bool loadingCountries = true;
     
     try {
@@ -200,7 +210,7 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                         ),
                       )
                     else if (countries.isNotEmpty)
-                      DropdownButtonFormField<String>(
+                      DropdownButtonFormField<String?>(
                         initialValue: selectedCountryCode,
                         isExpanded: true,
                         decoration: InputDecoration(
@@ -209,25 +219,38 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
                           focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor, width: 1)),
                           contentPadding: const EdgeInsets.all(16),
                         ),
-                        items: countries.map((country) {
-                          return DropdownMenuItem<String>(
-                            value: country['code'],
-                            child: Row(
-                              children: [
-                                Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
-                                const SizedBox(width: 12),
-                                Text(
-                                  '${country['country_name']} (+${country['code']})',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: textColor,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
+                        items: [
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text(
+                              'Aucun (optionnel)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: textColorSecondary,
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
-                          );
-                        }).toList(),
+                          ),
+                          ...countries.map((country) {
+                            return DropdownMenuItem<String?>(
+                              value: country['code'],
+                              child: Row(
+                                children: [
+                                  Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '${country['country_name']} (+${country['code']})',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: textColor,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
                         onChanged: (value) {
                           setStateDialog(() => selectedCountryCode = value);
                         },
@@ -284,17 +307,19 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
       try {
         final phoneNumber = numberCtl.text.trim();
         final normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
-        final fullPhone = normalizedPhone.isNotEmpty ? '+$selectedCountryCode$normalizedPhone' : '';
+        final fullPhone = (normalizedPhone.isNotEmpty && selectedCountryCode != null) ? '+$selectedCountryCode$normalizedPhone' : '';
         
         final body = {
-          'client_number': fullPhone,
           'name': nameCtl.text.trim(),
+          if (phoneNumber.isNotEmpty) 'client_number': phoneNumber,
+          if (fullPhone.isNotEmpty) 'phone': fullPhone,
           if (selectedCountryCode != null) 'country_code': selectedCountryCode,
         };
         final headers = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
         setState(() => _saving = true);
         final res = await http.post(Uri.parse('$apiHost/clients'), headers: headers, body: json.encode(body)).timeout(const Duration(seconds: 8));
-        if (res.statusCode == 201) {
+        
+        if (res.statusCode == 201 || res.statusCode == 200) {
           try {
             final created = json.decode(res.body);
             setState(() {
@@ -313,40 +338,34 @@ class _AddDebtPageState extends State<AddDebtPage> with TickerProviderStateMixin
           } catch (_) {
             _showMinimalSnackbar('Client ajouté', isSuccess: true);
           }
-        } else {
-          final bodyText = res.body;
-          final lower = bodyText.toLowerCase();
-          final isDuplicate = res.statusCode == 409 || lower.contains('duplicate') || lower.contains('already exists') || lower.contains('unique');
-          if (numberCtl.text.trim().isNotEmpty) {
-            try {
-              final headersGet = {'Content-Type': 'application/json', if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone};
-              final getRes = await http.get(Uri.parse('$apiHost/clients'), headers: headersGet).timeout(const Duration(seconds: 8));
-              if (getRes.statusCode == 200) {
-                final list = json.decode(getRes.body) as List;
-                final found = list.firstWhere((c) => (c['client_number'] ?? '').toString() == numberCtl.text.trim(), orElse: () => null);
-                if (found != null) {
-                  final choose = await _showExistingClientDialog(found);
-                  if (choose == true) {
-                    setState(() {
-                      final foundId = found['id']?.toString();
-                      final existsIndex = widget.clients.indexWhere((c) => c['id']?.toString() == foundId);
-                      if (existsIndex == -1) {
-                        widget.clients.insert(0, found);
-                      } else {
-                        widget.clients[existsIndex] = found;
-                      }
-                      _clientId = found['id'];
-                    });
-                    _showMinimalSnackbar('Client sélectionné', isSuccess: true);
-                    return;
-                  } else if (isDuplicate) {
-                    await _showMinimalDialog('Ce client existe déjà');
-                    return;
+        } else if (res.statusCode == 400) {
+          // ✅ Numéro existe déjà
+          try {
+            final error = json.decode(res.body);
+            final existingClient = error['existing_client'];
+            if (existingClient != null) {
+              final choose = await _showExistingClientDialog(existingClient);
+              if (choose == true) {
+                setState(() {
+                  final foundId = existingClient['id']?.toString();
+                  final existsIndex = widget.clients.indexWhere((c) => c['id']?.toString() == foundId);
+                  if (existsIndex == -1) {
+                    widget.clients.insert(0, existingClient);
+                  } else {
+                    widget.clients[existsIndex] = existingClient;
                   }
-                }
+                  _clientId = existingClient['id'];
+                });
+                _showMinimalSnackbar('Client sélectionné', isSuccess: true);
+                Navigator.pop(context, true); // ✅ Fermer la dialog de création
               }
-            } catch (_) {}
+            } else {
+              await _showMinimalDialog('Un client avec ce numéro existe déjà');
+            }
+          } catch (_) {
+            await _showMinimalDialog('Un client avec ce numéro existe déjà');
           }
+        } else {
           await _showMinimalDialog('Erreur lors de la création');
         }
       } catch (e) {

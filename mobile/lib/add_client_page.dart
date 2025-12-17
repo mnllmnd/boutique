@@ -43,8 +43,8 @@ class _AddClientPageState extends State<AddClientPage> {
               'flag_emoji': item['flag_emoji'] ?? '',
             })
           );
-          // Défaut: Sénégal (221)
-          selectedCountryCode = '221';
+          // ❌ PAS DE DÉFAUT - Laisser null pour que l'utilisateur choisisse
+          selectedCountryCode = null;
           loadingCountries = false;
         });
       } else {
@@ -61,22 +61,21 @@ class _AddClientPageState extends State<AddClientPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (selectedCountryCode == null) {
-      _showMinimalSnackbar('Veuillez sélectionner un pays');
-      return;
-    }
-
+    // ✅ PAS d'obligation de sélectionner un pays
     setState(() => _saving = true);
     try {
       final phoneNumber = _numberCtl.text.trim();
       final normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
-      final fullPhone = '+$selectedCountryCode$normalizedPhone';
       
+      // ✅ Construire le body conditionnellement
       final body = {
         'name': _nameCtl.text.trim(),
-        'client_number': fullPhone,
-        'country_code': selectedCountryCode,
+        // ✅ Envoyer client_number SEULEMENT si l'utilisateur a saisi un numéro
+        if (phoneNumber.isNotEmpty) 'client_number': phoneNumber,
+        // ✅ Envoyer country_code SEULEMENT si l'utilisateur a choisi un pays
+        if (selectedCountryCode != null) 'country_code': selectedCountryCode,
       };
+      
       final headers = {
         'Content-Type': 'application/json', 
         if (widget.ownerPhone.isNotEmpty) 'x-owner': widget.ownerPhone
@@ -98,16 +97,28 @@ class _AddClientPageState extends State<AddClientPage> {
       } else {
         final bodyText = res.body;
         final lower = bodyText.toLowerCase();
+        
+        // ✅ Essayer de parser l'erreur JSON du backend
+        String errorMessage = 'Erreur lors de la création du client';
+        try {
+          final errorJson = json.decode(bodyText);
+          if (errorJson['error'] != null) {
+            errorMessage = errorJson['error'].toString();
+          }
+        } catch (_) {
+          // Si pas du JSON, utiliser le texte brut
+          if (bodyText.isNotEmpty && bodyText.length < 200) {
+            errorMessage = bodyText;
+          }
+        }
+        
         final isDuplicate = res.statusCode == 409 || 
             lower.contains('duplicate') || 
             lower.contains('already exists') || 
-            lower.contains('unique');
+            lower.contains('unique') ||
+            lower.contains('existe');
 
-        if (isDuplicate) {
-          await _showMinimalDialog('Un client avec ce numéro existe déjà.');
-        } else {
-          await _showMinimalDialog('Erreur lors de la création du client');
-        }
+        await _showMinimalDialog(errorMessage);
       }
     } catch (e) {
       await _showMinimalDialog('Erreur réseau');
@@ -294,7 +305,7 @@ class _AddClientPageState extends State<AddClientPage> {
                               ),
                             )
                           else
-                            DropdownButtonFormField<String>(
+                            DropdownButtonFormField<String?>(
                               initialValue: selectedCountryCode,
                               isExpanded: true,
                               decoration: InputDecoration(
@@ -307,25 +318,59 @@ class _AddClientPageState extends State<AddClientPage> {
                                 ),
                                 contentPadding: const EdgeInsets.all(16),
                               ),
-                              items: countries.map((country) {
-                                return DropdownMenuItem<String>(
-                                  value: country['code'],
-                                  child: Row(
-                                    children: [
-                                      Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        '${country['country_name']} (+${country['code']})',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: textColor,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ],
+                              items: [
+                                DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text(
+                                    'Aucun (optionnel)',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: textColorSecondary,
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
-                                );
-                              }).toList(),
+                                ),
+                                // ✅ Sénégal en premier pour accès rapide
+                                ...countries.where((c) => c['code'] == '221').map((country) {
+                                  return DropdownMenuItem<String?>(
+                                    value: country['code'],
+                                    child: Row(
+                                      children: [
+                                        Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          '${country['country_name']} (+${country['code']})',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: textColor,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                // ✅ Autres pays
+                                ...countries.where((c) => c['code'] != '221').map((country) {
+                                  return DropdownMenuItem<String?>(
+                                    value: country['code'],
+                                    child: Row(
+                                      children: [
+                                        Text(country['flag_emoji'] ?? '', style: const TextStyle(fontSize: 18)),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          '${country['country_name']} (+${country['code']})',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: textColor,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
                               onChanged: (value) {
                                 setState(() => selectedCountryCode = value);
                               },
