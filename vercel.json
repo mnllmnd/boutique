@@ -1,6 +1,6 @@
 {
-  "buildCommand": "echo 'skipped'", 
-  "outputDirectory": "build/web/web",
+  "buildCommand": "cd mobile && flutter build web --release && cd .. && cp -r mobile/build/web/web build/web || true", 
+  "outputDirectory": "build/web",
   "headers": [
     {
       "source": "/downloads/(.*)",
