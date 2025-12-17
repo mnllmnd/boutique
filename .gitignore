@@ -1,2 +1,5 @@
 /backend/node_modules/
 .vercel
+# Ignore all build outputs EXCEPT build/web
+/build/*
+!/build/web/
