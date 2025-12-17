@@ -1,6 +1,6 @@
 {
   "buildCommand": "echo 'Build done locally'",
-  "outputDirectory": "dist",
+  "outputDirectory": "public",
   "headers": [
     {
       "source": "/downloads/(.*)",
