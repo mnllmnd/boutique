@@ -1,6 +1,6 @@
 {
   "buildCommand": "echo 'Build done locally'",
-  "outputDirectory": "mobile/build/web",
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/downloads/(.*)",
