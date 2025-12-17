@@ -1,6 +1,6 @@
 {
   "buildCommand": "echo 'Build done locally'",
-  "outputDirectory": "public",
+  "outputDirectory": "vercel-build",
   "headers": [
     {
       "source": "/downloads/(.*)",
