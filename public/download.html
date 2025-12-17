@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Télécharger Boutique Mobile - Gestionnaire de Dettes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: #667eea;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 40px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .features {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .feature:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            color: #667eea;
+            font-size: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .feature-text {
+            color: #555;
+            font-size: 14px;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+            width: 100%;
+            gap: 10px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
+        }
+
+        .icon {
+            font-size: 20px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .info-box p {
+            color: #0066cc;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .system-requirements {
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .version-info {
+            color: #999;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .download-btn {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱</div>
+        <h1>Boutique Mobile</h1>
+        <p class="subtitle">Gestionnaire de Dettes Intelligent</p>
+
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span class="feature-text">Gestion complète de vos dettes</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span class="feature-text">Système de matching automatique</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span class="feature-text">Suivi des transactions en temps réel</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span class="feature-text">Interface intuitive et rapide</span>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p>⚙️ Configuration automatique - Aucun paramétrage requis</p>
+        </div>
+
+        <a href="/downloads/boutique-mobile.apk" class="download-btn" download>
+            <span class="icon">⬇️</span>
+            <span>Télécharger l'APK</span>
+        </a>
+
+        <div class="system-requirements">
+            <p><strong>Configuration système requise:</strong></p>
+            <p>• Android 5.0 ou supérieur</p>
+            <p>• Espace disponible: ~60 MB</p>
+            <p>• Connexion Internet recommandée</p>
+            <div class="version-info">
+                <p><strong>Version:</strong> 1.0.0</p>
+                <p><strong>Taille:</strong> 58.6 MB</p>
+                <p id="updated"><strong>Mis à jour:</strong> <span id="date"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Afficher la date actuelle
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        const today = new Date().toLocaleDateString('fr-FR', options);
+        document.getElementById('date').textContent = today;
+
+        // Optionnel: Vérifier si l'utilisateur est sur Android
+        document.addEventListener('DOMContentLoaded', function() {
+            const isAndroid = /android/i.test(navigator.userAgent);
+            if (!isAndroid) {
+                const msg = document.createElement('div');
+                msg.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:12px;border-radius:8px;margin-bottom:20px;';
+                msg.innerHTML = '⚠️ <strong>Important:</strong> Cette application est optimisée pour Android. Assurez-vous d\'utiliser un appareil Android pour installer cet APK.';
+                document.querySelector('.container').insertBefore(msg, document.querySelector('.download-btn'));
+            }
+        });
+    </script>
+</body>
+</html>
