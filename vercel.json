@@ -1,6 +1,7 @@
 {
-  "buildCommand": "echo skipped", 
-  "outputDirectory": "build/web/web",
+  "buildCommand": "echo 'skipped'", 
+  "installCommand": "echo 'skipped'",
+  "outputDirectory": "build/web",
   "headers": [
     {
       "source": "/downloads/(.*)",
