@@ -1,6 +1,6 @@
 {
-  "buildCommand": "echo 'Build done locally'",
-  "outputDirectory": "public_build",
+  "buildCommand": "mkdir -p build/web && cp -r public_build/* build/web/ 2>/dev/null || (mkdir build\\web 2>nul & xcopy public_build build\\web /E /I /Y > nul)",
+  "outputDirectory": "build/web",
   "headers": [
     {
       "source": "/downloads/(.*)",
