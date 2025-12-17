@@ -47,3 +47,5 @@ app.*.map.json
 # ✅ Autoriser le build Flutter Web pour Vercel
 !build/web/
 !build/web/**
+.vercel
+.env*.local
