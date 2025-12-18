@@ -95,7 +95,11 @@ Map<String, dynamic> _formatDueDate(dynamic dateStr) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
+  try {
+    await dotenv.load();
+  } catch (e) {
+    print('⚠️  dotenv.load() failed: $e (expected on web)');
+  }
   
   // ⬇️ NOUVEAU: Capturer les futures non gérées
   PlatformDispatcher.instance.onError = (error, stack) {
