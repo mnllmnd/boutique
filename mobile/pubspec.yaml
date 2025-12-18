@@ -38,6 +38,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
 
 
@@ -45,3 +46,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.svg
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/logo.svg"
+  adaptive_icon_background: "#0F1113"
+  adaptive_icon_foreground: "assets/logo.svg"

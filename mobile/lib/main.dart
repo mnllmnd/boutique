@@ -18,6 +18,7 @@ import 'hive/hive_service_manager.dart';
 import 'team_screen.dart';
 import 'app_settings.dart';
 import 'settings_screen.dart';
+import 'screens/splash_screen.dart';
 import 'quick_login_page.dart';
 import 'returning_user_page.dart';
 import 'services/pin_auth_offline_service.dart';
@@ -338,7 +339,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final mainApp = MaterialApp(
       title: 'Boutique - Gestion de dettes',
       theme: getAppTheme(lightMode: _appSettings.lightMode),
       home: shouldShowPinEntry == true && cachedPhoneForReturning != null
@@ -368,6 +369,11 @@ class _MyAppState extends State<MyApp> {
               ? QuickLoginPage(onLogin: (phone, shop, id, firstName, lastName, boutiqueModeEnabled) => setOwner(phone: phone, shopName: shop, id: id, firstName: firstName, lastName: lastName, boutiqueModeEnabled: boutiqueModeEnabled))
               : HomePage(ownerPhone: ownerPhone!, ownerShopName: ownerShopName, onLogout: clearOwner, hasPinSet: cachedHasPinForReturning ?? false),
     );
+
+    // ✅ Show splash screen on first load, then switch to main app
+    return ownerPhone == null && shouldShowPinEntry != true 
+        ? SplashScreen(nextScreen: mainApp)
+        : mainApp;
   }
 }
 

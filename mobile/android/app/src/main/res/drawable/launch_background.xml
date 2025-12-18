@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ✅ Custom splash screen with Boutique logo -->
+<!-- ✅ Native Android splash screen (shown before Flutter loads) -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Fond sombre -->
+    <!-- Fond avec gradient sombre -->
     <item android:drawable="@color/dark_background" />
-
-    <!-- Logo Boutique au centre -->
+    
+    <!-- Loader simple pendant que Flutter initialise -->
     <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/boutique_logo" />
+        <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <solid android:color="@color/dark_background" />
+        </shape>
     </item>
 </layer-list>

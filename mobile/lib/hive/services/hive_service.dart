@@ -44,16 +44,30 @@ class HiveService {
   }) async {
     try {
       // Initialiser la queue de synchronisation
-      _syncQueue = await SyncQueue.init();
+      try {
+        _syncQueue = await SyncQueue.init();
+      } catch (e) {
+        print('⚠️  SyncQueue.init() failed: $e - continuing without sync queue');
+        // Continue without sync queue - it's not critical
+      }
 
       // Initialiser la connectivité
       _connectivity = Connectivity();
-      _connectivitySubscription =
-          _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
+      try {
+        _connectivitySubscription =
+            _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
+      } catch (e) {
+        print('⚠️  Connectivity listener failed: $e');
+      }
 
       // Vérifier la connectivité initiale
-      final List<ConnectivityResult> results = await _connectivity.checkConnectivity(); // ✅ CORRIGÉ
-      _isOnline = results.isNotEmpty && results[0] != ConnectivityResult.none; // ✅ CORRIGÉ
+      try {
+        final List<ConnectivityResult> results = await _connectivity.checkConnectivity(); // ✅ CORRIGÉ
+        _isOnline = results.isNotEmpty && results[0] != ConnectivityResult.none; // ✅ CORRIGÉ
+      } catch (e) {
+        print('⚠️  Connectivity check failed: $e - assuming online');
+        _isOnline = true; // Assume online if check fails
+      }
 
       // Initialiser ou récupérer le statut de sync
       _initSyncStatus(ownerPhone);
@@ -61,9 +75,9 @@ class HiveService {
       // Démarrer la synchronisation automatique
       _startAutoSync(ownerPhone);
 
-      print('HiveService initialized for $ownerPhone');
+      print('✅ HiveService initialized for $ownerPhone');
     } catch (e) {
-      print('Error initializing HiveService: $e');
+      print('❌ Error initializing HiveService: $e');
       rethrow;
     }
   }
