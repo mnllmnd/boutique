@@ -1,6 +1,7 @@
 import 'package:boutique_mobile/add_payment_page.dart';
 import 'package:boutique_mobile/add_loan_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // ← ADD THIS
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
@@ -468,11 +469,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         
         // ✨ Initialize HiveServiceManager en ARRIÈRE-PLAN (pas d'await au démarrage!)
         // Cela ne doit pas bloquer l'affichage initial
-        HiveServiceManager().initializeForOwner(widget.ownerPhone).then((_) {
-          print('✅ HiveServiceManager initialized');
-        }).catchError((e) {
-          print('⚠️  HiveServiceManager init error: $e');
-        });
+        // ⚠️  Skip on web - Hive doesn't work on web
+        if (!kIsWeb) {
+          HiveServiceManager().initializeForOwner(widget.ownerPhone).then((_) {
+            print('✅ HiveServiceManager initialized');
+          }).catchError((e) {
+            print('⚠️  HiveServiceManager init error: $e');
+          });
+        }
       }
     });
   }
@@ -489,14 +493,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _pulseController.dispose();
     
     // ✨ Shutdown HiveServiceManager (non-blocking)
-    HiveServiceManager().shutdown().catchError((e) {
-      print('⚠️  HiveServiceManager shutdown error: $e');
-    });
+    if (!kIsWeb) {
+      HiveServiceManager().shutdown().catchError((e) {
+        print('⚠️  HiveServiceManager shutdown error: $e');
+      });
+    }
     
     super.dispose();
   }
 
   Future<void> _startConnectivityListener() async {
+  if (kIsWeb) {
+    print('⚠️  Connectivity check skipped on web');
+    return;
+  }
+  
   try {
     final List<ConnectivityResult> conn = await Connectivity().checkConnectivity();
     if (_hasConnection(conn)) {

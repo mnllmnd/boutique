@@ -26,7 +26,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "ebf52eec45092aa094db9dbaabe5e177
 "downloads/boutique-mobile.apk": "b6dae76fd0b9dd58ae40ecb23d516924",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "0be56c9e246d43c8d40577fd3f458928",
+"flutter_bootstrap.js": "8439d899a5b1a32d5f5f955f14535543",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
@@ -34,7 +34,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "ebf52eec45092aa094db9dbaabe5e177
 "index.html": "0d860bcc11c1a1859f41adc9c3c23093",
 "/": "0d860bcc11c1a1859f41adc9c3c23093",
 "logo.jpeg": "42d5e52525936496ec4e847d0bb4371d",
-"main.dart.js": "c4f8e1c8485307a163022c97a7da8d08",
+"main.dart.js": "bff75cd36044f6c8a7d997da985198f5",
 "manifest.json": "c5b761ebaa60bee048d5d52da138e870",
 "version.json": "786bf6dc17d365bfa4e575c21a69ae11"};
 // The application shell files that are downloaded before a service worker can
